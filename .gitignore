@@ -1,0 +1,10 @@
+*~
+.DS_Store
+
+logs/*
+trained_models/*
+.project
+.pydevproject
+.virtual/
+.vscode/
+__pycache__/
