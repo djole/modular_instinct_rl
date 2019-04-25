@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
 from random import uniform
+import math
+
+
 class Controller(torch.nn.Module):
     
-    def __init__(self, D_in, H, D_out):
+    def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=1.0):
         super(Controller, self).__init__()
         self.din = D_in
         self.dout = D_out
@@ -12,7 +15,10 @@ class Controller(torch.nn.Module):
             nn.Linear(H,H),
             nn.ReLU(),
             nn.Linear(H, D_out))
-        self.sigma = torch.ones(1, D_out) * 0.01
+        self.sigma = nn.Parameter(torch.Tensor(D_out))
+        self.sigma.data.fill_(math.log(init_std))
+
+        self.min_log_std = math.log(min_std)
 
         #for p, sigma in zip(self.controller.parameters(), [uniform(0, 100) for i in range(100000)]):
         #    p = torch.randn_like(p) * sigma
@@ -21,7 +27,8 @@ class Controller(torch.nn.Module):
     
     def forward(self, x):
         means = self.controller(x)
-        dist = torch.distributions.Normal(means, self.sigma)
+        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
+        dist = torch.distributions.Normal(means, scales)
         action = dist.sample()
         return action, dist.log_prob(action)
         
@@ -40,7 +47,6 @@ class ControllerCombinator(torch.nn.Module):
         votes = map(lambda fnc: fnc(x), self.modules)
         votes = torch.tensor(votes)
         out = self.combinator(votes)
-        out.clamp_(-1, 1)
         return out
 
     def expose_modules(self):

@@ -30,6 +30,7 @@ class Navigation2DEnv(gym.Env):
         self._goal = task.get('goal', np.zeros(2, dtype=np.float32))
         self._state = np.zeros(2, dtype=np.float32)
         self.seed()
+        self.horizon = 100
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -46,6 +47,7 @@ class Navigation2DEnv(gym.Env):
 
     def reset(self, env=True):
         self._state = np.zeros(2, dtype=np.float32)
+        self.horizon = 100
         return self._state
 
     def step(self, action):
@@ -56,6 +58,9 @@ class Navigation2DEnv(gym.Env):
         x = self._state[0] - self._goal[0]
         y = self._state[1] - self._goal[1]
         reward = -np.sqrt(x ** 2 + y ** 2)
-        done = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
 
-        return self._state, reward, done, self._task
+        reached = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
+        done = reached or self.horizon <= 0
+        self.horizon -= 1
+
+        return self._state, reward, done, reached, self._task

@@ -53,7 +53,7 @@ class Policy(nn.Module):
 
 policy = Controller(2, 100, 2)
 policy.train(True)
-optimizer = optim.Adam(policy.parameters(), lr=0.1)
+optimizer = optim.Adam(policy.parameters(), lr=0.0001)
 eps = np.finfo(np.float32).eps.item()
 
 
@@ -95,12 +95,15 @@ def main():
         for t in range(1, 200):  # Don't infinite loop while learning
             action = select_action(state)
             action = action.flatten()
-            state, reward, done, _ = env.step(action)
+            state, reward, done, reached, _ = env.step(action)
             if args.render:
                 env.render()
             policy.rewards.append(reward)
             ep_reward += reward
             if done:
+                if reached:
+                    print("Reached! Last reward {}".format(reward))
+                    #input()
                 env.reset()
 
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
