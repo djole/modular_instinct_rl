@@ -4,6 +4,8 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
+import matplotlib.pyplot as plt
+
 class Navigation2DEnv(gym.Env):
     """2D navigation problems, as described in [1]. The code is adapted from 
     https://github.com/cbfinn/maml_rl/blob/9c8e2ebd741cb0c7b8bf2d040c4caeeb8e06cc95/maml_examples/point_env_randgoal.py
@@ -31,6 +33,9 @@ class Navigation2DEnv(gym.Env):
         self._state = np.zeros(2, dtype=np.float32)
         self.seed()
         self.horizon = 100
+        self.cummulative_reward = 0
+        self.episode_x_path = []
+        self.episode_y_path = []
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -48,6 +53,9 @@ class Navigation2DEnv(gym.Env):
     def reset(self, env=True):
         self._state = np.zeros(2, dtype=np.float32)
         self.horizon = 100
+        self.cummulative_reward = 0
+        self.episode_x_path.clear()
+        self.episode_y_path.clear()
         return self._state
 
     def step(self, action):
@@ -62,5 +70,15 @@ class Navigation2DEnv(gym.Env):
         reached = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
         done = reached or self.horizon <= 0
         self.horizon -= 1
+        self.cummulative_reward += reward
 
-        return self._state, reward, done, reached, self._task
+        self.episode_x_path.append(self._state[0])
+        self.episode_y_path.append(self._state[1])
+
+        return self._state, reward, done, reached, self.cummulative_reward, self._task
+    
+    def render_episode(self):
+        fig = plt.figure()
+        plt.plot(self.episode_x_path, self.episode_y_path)
+        plt.plot(self._goal[0], self._goal[1], 'r*')
+        plt.show()

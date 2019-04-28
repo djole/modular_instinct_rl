@@ -31,30 +31,56 @@ class Controller(torch.nn.Module):
         dist = torch.distributions.Normal(means, scales)
         action = dist.sample()
         return action, dist.log_prob(action)
+
         
 class ControllerCombinator(torch.nn.Module):
 
-    def __init__(self, D_in, N, H, D_out):
+    def __init__(self, D_in, N, H, D_out, min_std=1e-6, init_std=1.0):
         super(ControllerCombinator, self).__init__()
-        self.modules = []
+        self.elements = torch.nn.ModuleList()
         for i in range(N):
             c = Controller(D_in, H, D_out)
-            self.modules.append(c)
-            c.requires_grad = False
+            self.elements.append(c)
         self.combinator = nn.Linear(D_out * N, D_out)
-    
+        
+        self.sigma = nn.Parameter(torch.Tensor(D_out))
+        self.sigma.data.fill_(math.log(init_std))
+        self.min_log_std = math.log(min_std)
+
     def forward(self, x):
-        votes = map(lambda fnc: fnc(x), self.modules)
-        votes = torch.tensor(votes)
-        out = self.combinator(votes)
-        return out
+        #if not torch.any(torch.isnan(self.sigma)):
+        #    print("sigma ok {}".format(self.sigma))
+        #else:
+        #    assert not torch.any(torch.isnan(self.sigma))
+        #votes = list(map(lambda fnc: fnc(x), self.elements))
+        votes = []
+        votes_log_probs = []
+        for fnc in self.elements:
+            vote, vlp = fnc(x)
+            votes.append(vote)
+            votes_log_probs.append(vlp)
+        
+        votes = torch.cat(votes)
+        means = self.combinator(votes)
+        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
+        dist = torch.distributions.Normal(means, scales)
+        out = dist.sample()
+        return out, dist.log_prob(out) + sum(votes_log_probs)
 
     def expose_modules(self):
-        for module in self.modules:
+        for module in self.elements:
             module.requires_grad = True
-        self.combinator.requires_grad = False
+        self.combinator.requires_grad = True
     
-    def expose_combinaror(self):
-        for module in self.modules:
+    def cover_modules(self):
+        for module in self.elements:
             module.requires_grad = False
         self.combinator.requires_grad = True
+    
+    def get_combinator_params(self):
+        comb_params = []
+        dct = self.named_parameters()
+        for pkey, ptensor in dct:
+            if 'combinator' in pkey or pkey == 'sigma':
+                comb_params.append(ptensor)
+        return comb_params

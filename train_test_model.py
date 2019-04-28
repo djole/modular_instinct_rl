@@ -3,6 +3,7 @@ import navigation_2d
 import numpy as np
 from itertools import count
 import matplotlib.pyplot as plt
+from collections import deque
 
 import torch
 import torch.nn as nn
@@ -11,7 +12,6 @@ import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
 from model import Controller, ControllerCombinator
-
 
 parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
 parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
@@ -24,93 +24,104 @@ parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='interval between training status logs (default: 10)')
 args = parser.parse_args()
 
-
-GOAL = [0.75, 0.3]
-START = [0.0, 0.0]
 env = navigation_2d.Navigation2DEnv()
 env.seed(args.seed)
-env.reset_task(env.sample_tasks(1)[0])
+GOAL = {'goal' : [0.75, 0.3]}
+env.reset_task(GOAL)
 torch.manual_seed(args.seed)
 
-
-class Policy(nn.Module):
-    def __init__(self):
-        super(Policy, self).__init__()
-        self.affine1 = nn.Linear(4, 128)
-        self.dropout = nn.Dropout(p=0.6)
-        self.affine2 = nn.Linear(128, 2)
-
-        self.saved_log_probs = []
-        self.rewards = []
-
-    def forward(self, x):
-        x = self.affine1(x)
-        x = self.dropout(x)
-        x = F.relu(x)
-        action_scores = self.affine2(x)
-        return F.softmax(action_scores, dim=1)
+EPS = np.finfo(np.float32).eps.item()
 
 
-policy = Controller(2, 100, 2)
-policy.train(True)
-optimizer = optim.Adam(policy.parameters(), lr=0.0001)
-eps = np.finfo(np.float32).eps.item()
-
-
-def select_action(state):
+def select_model_action(model, state):
     state = torch.from_numpy(state).float()
-    action, action_prob = policy(state)
-    policy.saved_log_probs.append(action_prob)
+    action, action_log_prob = model(state)
     #return action.item()
-    return action.detach().numpy()
+    return action.detach().numpy(), action_log_prob
 
-
-def finish_episode():
+def update_policy(model, rewards, log_probs, learning_rate=0.01):
+    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
     R = 0
     policy_loss = []
     returns = []
-    for r in policy.rewards[::-1]:
+    for r in rewards[::-1]:
         R = r + args.gamma * R
         returns.insert(0, R)
     returns = torch.tensor(returns)
-    returns = (returns - returns.mean()) / (returns.std() + eps)
-    for log_prob, R in zip(policy.saved_log_probs, returns):
+    returns = (returns - returns.mean()) / (returns.std() + EPS)
+    for log_prob, R in zip(log_probs, returns):
         policy_loss.append(-log_prob * R)
     optimizer.zero_grad()
     policy_loss = torch.cat(policy_loss).sum()
     policy_loss.backward()
     optimizer.step()
-    del policy.rewards[:]
-    del policy.saved_log_probs[:]
 
+def episode_rollout(model, rollout_index, max_steps=100, sample_goal=False, adapt=True, update_gap=10):
+    if sample_goal:
+        new_task = env.sample_tasks(1)
+        env.reset_task(new_task[0])
+
+    state = env.reset()
+    cummulative_reward = 0
+    rewards = []
+    action_log_probs = []
+    for st in range(max_steps):
+        for ii in range(update_gap):
+            action, action_log_prob = select_model_action(model, state)
+            action = action.flatten()
+            state, reward, done, reached, _, _ = env.step(action)
+            cummulative_reward += reward
+
+            rewards.append(reward)
+            action_log_probs.append(action_log_prob)
+            
+            if done:
+                break
+        if done:
+            break
+
+        if adapt:
+            assert len(rewards) > 1 and len(action_log_probs) > 1
+            update_policy(model, rewards, action_log_probs)
+            rewards.clear()
+            action_log_probs.clear()
+
+    return cummulative_reward, reached
 
 def main():
     fig = plt.figure() 
     plt.ion()
     plt.show()
-
+    policy = Controller(2, 100, 2)
     running_reward = 0
+    reward_buffer = deque(maxlen=10)
+    rewards = []
+    action_log_probs = []
     for i_episode in count(1):
         state, ep_reward = env.reset(), 0
         for t in range(1, 200):  # Don't infinite loop while learning
-            action = select_action(state)
+            action, action_log_prob = select_model_action(policy, state)
             action = action.flatten()
-            state, reward, done, reached, _ = env.step(action)
+            state, reward, done, reached, _, _ = env.step(action)
             if args.render:
                 env.render()
-            policy.rewards.append(reward)
+            rewards.append(reward)
+            action_log_probs.append(action_log_prob)
             ep_reward += reward
             if done:
                 if reached:
-                    print("Reached! Last reward {}".format(reward))
+                    print("Reached! cummulative reward {}".format(env.cummulative_reward))
                     #input()
+                reward_buffer.append(env.cummulative_reward)
                 env.reset()
 
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        finish_episode()
+        update_policy(policy, rewards, action_log_probs, learning_rate=0.0001)
+        rewards.clear()
+        action_log_probs.clear()
         if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
-                  i_episode, ep_reward, running_reward))
+            print('Episode {}\tLast reward: {:.2f}\tAverage reward form last ten episodes: {:.2f}'.format(
+                  i_episode, ep_reward, sum(reward_buffer)/float(len(reward_buffer))))
             #env.render()
 
         if running_reward > 0:
