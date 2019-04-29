@@ -6,7 +6,8 @@ from torch.distributions import Normal
 import numpy as np
 import time
 from model import ControllerCombinator
-from train_test_model import episode_rollout, env
+from train_test_model import episode_rollout
+import navigation_2d
 
 import os
 import copy
@@ -176,8 +177,8 @@ class EA:
         
         return (self.population[max_idx], max_fitness)
 
-    def fitness_calculation(self, individual, num_attempts=2):
-        fits = [episode_rollout(individual.model, rollout_index=ri) for ri in range(num_attempts)]
+    def fitness_calculation(self, individual, args, env, num_attempts=1):
+        fits = [episode_rollout(individual.model, args, env, rollout_index=ri) for ri in range(num_attempts)]
         fits, reacheds = list(zip(*fits))
         return sum(fits), sum(reacheds)
 
@@ -206,7 +207,7 @@ def save_population(args, population, best_ind, generation_idx):
     torch.save(save_model, os.path.join(save_path, "individual_" + str(generation_idx) + ".pt"))
 
 
-def rollout(args, device, pop_size=100, elite_prop=0.1, debug=False):
+def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
     assert elite_prop < 1.0 and elite_prop > 0.0, "Elite needs to be a measure of proportion of population, 0 < elite_prop < 1"
     if debug:
         pop_size = 10
@@ -217,11 +218,11 @@ def rollout(args, device, pop_size=100, elite_prop=0.1, debug=False):
         os.makedirs(args.save_dir)
 
     solver = EA(args, device, pop_size, elite_prop=elite_prop)
-    fitness_list = [0 for _ in range(pop_size)] 
+    fitness_list = [0 for _ in range(pop_size)]
     for iteration in range(1000):
         start_time = time.time()
         solutions = solver.ask()
-        fitness_calculation_ = partial(solver.fitness_calculation)
+        fitness_calculation_ = partial(solver.fitness_calculation, env=env, args=args)
 
         #with Pool(processes=NUM_PROC, maxtasksperchild=MAXTSK_CHLD) as pool:
         fitness_list = list(map(fitness_calculation_, solutions))
@@ -239,13 +240,20 @@ def rollout(args, device, pop_size=100, elite_prop=0.1, debug=False):
     return result
 
 
-if __name__ == '__main__':
-
+def main():
+    ''' main '''
     from arguments import get_args
     args = get_args()
     device = torch.device('cpu')
     args.debug = False
+    env = navigation_2d.Navigation2DEnv()
+    env.seed(args.seed)
+    torch.manual_seed(args.seed)
     if args.debug:
-        rollout(args, device, pop_size=10, elite_prop=0.1)
+        rollout(args, env, device, pop_size=10, elite_prop=0.1)
     else:
-        rollout(args, device)
+        rollout(args, env, device)
+
+if __name__ == '__main__':
+    main()
+

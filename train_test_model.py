@@ -13,23 +13,6 @@ from torch.distributions import Categorical, Normal
 
 from model import Controller, ControllerCombinator
 
-parser = argparse.ArgumentParser(description='PyTorch REINFORCE example')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor (default: 0.99)')
-parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 543)')
-parser.add_argument('--render', action='store_true',
-                    help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='interval between training status logs (default: 10)')
-args = parser.parse_args()
-
-env = navigation_2d.Navigation2DEnv()
-env.seed(args.seed)
-GOAL = {'goal' : [0.75, 0.3]}
-env.reset_task(GOAL)
-torch.manual_seed(args.seed)
-
 EPS = np.finfo(np.float32).eps.item()
 
 
@@ -39,7 +22,7 @@ def select_model_action(model, state):
     #return action.item()
     return action.detach().numpy(), action_log_prob
 
-def update_policy(model, rewards, log_probs, learning_rate=0.01):
+def update_policy(model, args, rewards, log_probs, learning_rate=0.01):
     optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
     R = 0
     policy_loss = []
@@ -56,7 +39,7 @@ def update_policy(model, rewards, log_probs, learning_rate=0.01):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(model, rollout_index, max_steps=100, adapt=True, update_gap=10):
+def episode_rollout(model, args, env, rollout_index, max_steps=100, adapt=True, update_gap=10):
     new_task = env.sample_tasks()
     env.reset_task(new_task[rollout_index])
 
@@ -81,13 +64,13 @@ def episode_rollout(model, rollout_index, max_steps=100, adapt=True, update_gap=
 
         if adapt:
             assert len(rewards) > 1 and len(action_log_probs) > 1
-            update_policy(model, rewards, action_log_probs)
+            update_policy(model, args, rewards, action_log_probs)
             rewards.clear()
             action_log_probs.clear()
 
     return cummulative_reward, reached
 
-def main():
+def main(args):
     fig = plt.figure() 
     plt.ion()
     plt.show()
@@ -96,6 +79,10 @@ def main():
     reward_buffer = deque(maxlen=10)
     rewards = []
     action_log_probs = []
+
+    env = navigation_2d.Navigation2DEnv()
+    env.seed(args.seed)
+
     for i_episode in count(1):
         state, ep_reward = env.reset(), 0
         for t in range(1, 200):  # Don't infinite loop while learning
@@ -115,7 +102,7 @@ def main():
                 env.reset()
 
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        update_policy(policy, rewards, action_log_probs, learning_rate=0.0001)
+        update_policy(policy, args, rewards, action_log_probs, learning_rate=0.0001)
         rewards.clear()
         action_log_probs.clear()
         if i_episode % args.log_interval == 0:
@@ -130,4 +117,5 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    from arguments import get_args
+    main(get_args())
