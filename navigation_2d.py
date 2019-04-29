@@ -37,12 +37,15 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path = []
         self.episode_y_path = []
 
+        self.task_sequence = [[0.7, 0.35], [0.35, 0.7]]
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def sample_tasks(self, num_tasks):
-        goals = self.np_random.uniform(-0.5, 0.5, size=(num_tasks, 2))
+    def sample_tasks(self):
+        #goals = self.np_random.uniform(-0.5, 0.5, size=(num_tasks, 2))
+        goals = np.array(self.task_sequence)
         tasks = [{'goal': goal} for goal in goals]
         return tasks
 

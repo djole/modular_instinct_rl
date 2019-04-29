@@ -176,8 +176,8 @@ class EA:
         
         return (self.population[max_idx], max_fitness)
 
-    def fitness_calculation(self, individual, num_attempts=5):
-        fits = [episode_rollout(individual.model, ri, sample_goal=True) for ri in range(num_attempts)]
+    def fitness_calculation(self, individual, num_attempts=2):
+        fits = [episode_rollout(individual.model, rollout_index=ri) for ri in range(num_attempts)]
         fits, reacheds = list(zip(*fits))
         return sum(fits), sum(reacheds)
 

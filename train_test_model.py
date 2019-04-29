@@ -56,10 +56,9 @@ def update_policy(model, rewards, log_probs, learning_rate=0.01):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(model, rollout_index, max_steps=100, sample_goal=False, adapt=True, update_gap=10):
-    if sample_goal:
-        new_task = env.sample_tasks(1)
-        env.reset_task(new_task[0])
+def episode_rollout(model, rollout_index, max_steps=100, adapt=True, update_gap=10):
+    new_task = env.sample_tasks()
+    env.reset_task(new_task[rollout_index])
 
     state = env.reset()
     cummulative_reward = 0
