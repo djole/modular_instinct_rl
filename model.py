@@ -3,56 +3,64 @@ import torch.nn as nn
 from random import uniform
 import math
 
+def weight_init(module):
+    if isinstance(module, nn.Linear):
+        nn.init.xavier_uniform_(module.weight)
+        module.bias.data.zero_()
+
 
 class Controller(torch.nn.Module):
+    '''Sigle element of the modular network'''
     
     def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=1.0):
         super(Controller, self).__init__()
         self.din = D_in
         self.dout = D_out
-        self.controller = nn.Sequential(nn.Linear(D_in, H),
+        self.controller = nn.Sequential(nn.Linear(D_in, H), 
             nn.ReLU(),
-            nn.Linear(H,H),
+            nn.Linear(H, H),
             nn.ReLU(),
             nn.Linear(H, D_out))
         self.sigma = nn.Parameter(torch.Tensor(D_out))
         self.sigma.data.fill_(math.log(init_std))
 
         self.min_log_std = math.log(min_std)
-
-        #for p, sigma in zip(self.controller.parameters(), [uniform(0, 100) for i in range(100000)]):
-        #    p = torch.randn_like(p) * sigma
         self.saved_log_probs = []
         self.rewards = []
-    
+   
     def forward(self, x):
         means = self.controller(x)
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
-        action = dist.sample()
-        return action, dist.log_prob(action)
+        action = dist.mean
+        return action, 0#, dist.log_prob(action)
 
-        
+       
 class ControllerCombinator(torch.nn.Module):
-
+    ''' The combinator that is modified during lifetime'''
     def __init__(self, D_in, N, H, D_out, min_std=1e-6, init_std=1.0):
         super(ControllerCombinator, self).__init__()
+    
+        # Initialize the 
         self.elements = torch.nn.ModuleList()
         for i in range(N):
             c = Controller(D_in, H, D_out)
             self.elements.append(c)
-        self.combinator = nn.Linear(D_out * N, D_out)
-        
+      
+        # Networks that will combine the outputs of the different elemenrts
+        self.combinators = nn.ModuleList()
+        for _ in range(D_out):
+            self.combinators.append(nn.Linear(N, 1))
+     
         self.sigma = nn.Parameter(torch.Tensor(D_out))
+
+        self.apply(weight_init)
+
         self.sigma.data.fill_(math.log(init_std))
         self.min_log_std = math.log(min_std)
 
+
     def forward(self, x):
-        #if not torch.any(torch.isnan(self.sigma)):
-        #    print("sigma ok {}".format(self.sigma))
-        #else:
-        #    assert not torch.any(torch.isnan(self.sigma))
-        #votes = list(map(lambda fnc: fnc(x), self.elements))
         votes = []
         votes_log_probs = []
         for fnc in self.elements:
@@ -60,12 +68,22 @@ class ControllerCombinator(torch.nn.Module):
             votes.append(vote)
             votes_log_probs.append(vlp)
         
-        votes = torch.cat(votes)
-        means = self.combinator(votes)
+        votes_ = torch.stack(votes)
+        votes_t = torch.transpose(votes_, 0, 1)
+
+        means = []
+        for vm, com in zip(votes_t, self.combinators):
+            means.append(com(vm))
+
+        means = torch.stack(means)
+        means = torch.flatten(means)
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
         out = dist.sample()
-        return out, dist.log_prob(out) + sum(votes_log_probs)
+
+        votes = torch.cat(votes)
+        debug_info = (means.detach().numpy(), votes.detach().numpy())
+        return out, dist.log_prob(out) + sum(votes_log_probs), debug_info
 
     def expose_modules(self):
         for module in self.elements:

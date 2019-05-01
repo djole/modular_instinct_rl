@@ -11,6 +11,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
+import copy
+
 from model import Controller, ControllerCombinator
 
 EPS = np.finfo(np.float32).eps.item()
@@ -18,9 +20,9 @@ EPS = np.finfo(np.float32).eps.item()
 
 def select_model_action(model, state):
     state = torch.from_numpy(state).float()
-    action, action_log_prob = model(state)
+    action, action_log_prob, debug_info = model(state)
     #return action.item()
-    return action.detach().numpy(), action_log_prob
+    return action.detach().numpy(), action_log_prob, debug_info
 
 def update_policy(model, args, rewards, log_probs, learning_rate=0.01):
     optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
@@ -39,17 +41,26 @@ def update_policy(model, args, rewards, log_probs, learning_rate=0.01):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(model, args, env, rollout_index, max_steps=100, adapt=True, update_gap=10):
+def episode_rollout(init_model, args, env, rollout_index, max_steps=100, adapt=True, update_gap=10, vis=False):
     new_task = env.sample_tasks()
     env.reset_task(new_task[rollout_index])
+
+    model = copy.deepcopy(init_model)
 
     state = env.reset()
     cummulative_reward = 0
     rewards = []
     action_log_probs = []
+    
+    ######
+    # Visualisation elements
+    action_records = list()
+    path_records = list()
+    debug_info_records = list()
+    # ---------------------
     for st in range(max_steps):
         for ii in range(update_gap):
-            action, action_log_prob = select_model_action(model, state)
+            action, action_log_prob, debug_info = select_model_action(model, state)
             action = action.flatten()
             state, reward, done, reached, _, _ = env.step(action)
             cummulative_reward += reward
@@ -57,6 +68,13 @@ def episode_rollout(model, args, env, rollout_index, max_steps=100, adapt=True, 
             rewards.append(reward)
             action_log_probs.append(action_log_prob)
             
+            ######
+            # Visualisation elements
+            if vis:
+                action_records.append(action)
+                path_records.append(env._state)
+                debug_info_records.append(debug_info)
+            # --------------------- 
             if done:
                 break
         if done:
@@ -68,7 +86,7 @@ def episode_rollout(model, args, env, rollout_index, max_steps=100, adapt=True, 
             rewards.clear()
             action_log_probs.clear()
 
-    return cummulative_reward, reached
+    return cummulative_reward, reached, (action_records, path_records, debug_info_records)
 
 def main(args):
     fig = plt.figure() 

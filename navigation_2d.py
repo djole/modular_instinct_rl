@@ -6,6 +6,7 @@ from gym.utils import seeding
 
 import matplotlib.pyplot as plt
 
+HORIZON = 100
 class Navigation2DEnv(gym.Env):
     """2D navigation problems, as described in [1]. The code is adapted from 
     https://github.com/cbfinn/maml_rl/blob/9c8e2ebd741cb0c7b8bf2d040c4caeeb8e06cc95/maml_examples/point_env_randgoal.py
@@ -32,12 +33,12 @@ class Navigation2DEnv(gym.Env):
         self._goal = task.get('goal', np.zeros(2, dtype=np.float32))
         self._state = np.zeros(2, dtype=np.float32)
         self.seed()
-        self.horizon = 100
+        self.horizon = HORIZON
         self.cummulative_reward = 0
         self.episode_x_path = []
         self.episode_y_path = []
 
-        self.task_sequence = [[0.7, 0.35], [0.35, 0.7]]
+        self.task_sequence = [[0.7, 0.35], [-0.7, -0.35]]
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -55,7 +56,7 @@ class Navigation2DEnv(gym.Env):
 
     def reset(self, env=True):
         self._state = np.zeros(2, dtype=np.float32)
-        self.horizon = 100
+        self.horizon = HORIZON
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()

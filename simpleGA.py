@@ -77,9 +77,9 @@ class EA:
         self.reached = []
         self.args = args
         
-        self.sigma = 0.1
+        self.sigma = 0.01
         self.sigma_decay = 0.999
-        self.min_sigma = 0.01
+        self.min_sigma = 0.001
 
         # if recover GA, load a list of files representing the population
         if args.load_ga:
@@ -97,7 +97,7 @@ class EA:
 
             ####   Rethink how to randomize the initial model
             for p in start_model.parameters():
-                p.data.copy_(torch.randn_like(p.data))
+                p.data.copy_(torch.randn_like(p.data) * 0.01)
             if n < self.pop_size:
                 self.population.append(ind)
                 self.fitnesses.append(0)
@@ -177,9 +177,9 @@ class EA:
         
         return (self.population[max_idx], max_fitness)
 
-    def fitness_calculation(self, individual, args, env, num_attempts=1):
-        fits = [episode_rollout(individual.model, args, env, rollout_index=ri) for ri in range(num_attempts)]
-        fits, reacheds = list(zip(*fits))
+    def fitness_calculation(self, individual, args, env, num_attempts=2):
+        fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=True) for ri in range(num_attempts)]
+        fits, reacheds, _ = list(zip(*fits))
         return sum(fits), sum(reacheds)
 
 def save_population(args, population, best_ind, generation_idx):
