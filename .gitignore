@@ -7,4 +7,5 @@ trained_models/*
 .pydevproject
 .virtual/
 .vscode/
+.scrap.py
 __pycache__/
