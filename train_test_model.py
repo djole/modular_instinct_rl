@@ -60,6 +60,8 @@ def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=T
     path_records = list()
     debug_info_records = list()
     # ---------------------
+    reached_global = 0
+
     for up_idx in range(num_updates):
         for ep_idx in range(num_episodes):
             while True:
@@ -70,7 +72,7 @@ def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=T
 
                 rewards.append(reward)
                 action_log_probs.append(action_log_prob)
-
+                reached_global += 1 if reached else 0
                 ######
                 # Visualisation elements
                 if vis:
@@ -88,7 +90,7 @@ def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=T
             rewards.clear()
             action_log_probs.clear()
 
-    return cummulative_reward, reached, (action_records, path_records, debug_info_records)
+    return cummulative_reward, reached_global, (action_records, path_records, debug_info_records)
 
 def main(args):
     fig = plt.figure() 
