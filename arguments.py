@@ -41,8 +41,12 @@ def get_args():
     """ Learning specific arguments """
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
                         help='discount factor (default: 0.99)')
-    parser.add_argument('--lr', type=float, default=7e-4,
-                        help='learning rate (default: 7e-4)')
+    parser.add_argument('--lr', type=float, default=0.01,
+                        help='learning rate (default: 0.01)')
+    parser.add_argument('--deterministic', action='store_true', default=False)
+    parser.add_argument('--ep-training', action='store_true', default=False)
+    parser.add_argument("--init-sigma", type=positive_nonzero_float, default=1.0,
+                        help="initialized value for the exploration sigma parameter")
     args = parser.parse_args()
     args.cuda = False
 

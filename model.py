@@ -38,7 +38,7 @@ class Controller(torch.nn.Module):
        
 class ControllerCombinator(torch.nn.Module):
     ''' The combinator that is modified during lifetime'''
-    def __init__(self, D_in, N, H, D_out, min_std=1e-6, init_std=1.0):
+    def __init__(self, D_in, N, H, D_out, min_std=1e-6, init_std=1.0, det=False):
         super(ControllerCombinator, self).__init__()
     
         # Initialize the 
@@ -58,6 +58,7 @@ class ControllerCombinator(torch.nn.Module):
 
         self.sigma.data.fill_(math.log(init_std))
         self.min_log_std = math.log(min_std)
+        self.deterministic = det
 
 
     def forward(self, x):
@@ -79,7 +80,7 @@ class ControllerCombinator(torch.nn.Module):
         means = torch.flatten(means)
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
-        out = dist.sample()
+        out = dist.mean if self.deterministic else dist.sample()
 
         votes = torch.cat(votes)
         debug_info = (means.detach().numpy(), votes.detach().numpy())

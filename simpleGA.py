@@ -48,8 +48,8 @@ class Individual:
         self.model_plasticity_masks = []
 
 class EA:
-    def _init_model(self):
-        model = ControllerCombinator(D_IN, 2, D_HIDDEN, D_OUT)
+    def _init_model(self, deterministic, init_sigma):
+        model = ControllerCombinator(D_IN, 2, D_HIDDEN, D_OUT, det=deterministic, init_std=init_sigma)
         return model
 
     def _compute_ranks(self, x):
@@ -91,13 +91,10 @@ class EA:
                 print("Load individual from {}".format(saved_files[n]))
                 start_model = s[0]
             else:
-                start_model = self._init_model()
+                start_model = self._init_model(args.deterministic, args.init_sigma)
 
             ind = Individual(start_model, device, rank=n)
 
-            ####   Rethink how to randomize the initial model
-            for p in start_model.parameters():
-                p.data.copy_(torch.randn_like(p.data) * 0.01)
             if n < self.pop_size:
                 self.population.append(ind)
                 self.fitnesses.append(0)
@@ -178,7 +175,7 @@ class EA:
         return (self.population[max_idx], max_fitness)
 
     def fitness_calculation(self, individual, args, env, num_attempts=2):
-        fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=True) for ri in range(num_attempts)]
+        fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits, reacheds, _ = list(zip(*fits))
         return sum(fits), sum(reacheds)
 

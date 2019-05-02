@@ -24,8 +24,7 @@ def select_model_action(model, state):
     #return action.item()
     return action.detach().numpy(), action_log_prob, debug_info
 
-def update_policy(model, args, rewards, log_probs, learning_rate=0.01):
-    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
+def update_policy(model, optimizer, args, rewards, log_probs):
     R = 0
     policy_loss = []
     returns = []
@@ -41,11 +40,14 @@ def update_policy(model, args, rewards, log_probs, learning_rate=0.01):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(init_model, args, env, rollout_index, max_steps=100, adapt=True, update_gap=10, vis=False):
+def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=True, num_episodes=20, vis=False):
+    
     new_task = env.sample_tasks()
     env.reset_task(new_task[rollout_index])
 
     model = copy.deepcopy(init_model)
+
+    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=args.lr)
 
     state = env.reset()
     cummulative_reward = 0
@@ -58,31 +60,31 @@ def episode_rollout(init_model, args, env, rollout_index, max_steps=100, adapt=T
     path_records = list()
     debug_info_records = list()
     # ---------------------
-    for st in range(max_steps):
-        for ii in range(update_gap):
-            action, action_log_prob, debug_info = select_model_action(model, state)
-            action = action.flatten()
-            state, reward, done, reached, _, _ = env.step(action)
-            cummulative_reward += reward
+    for up_idx in range(num_updates):
+        for ep_idx in range(num_episodes):
+            while True:
+                action, action_log_prob, debug_info = select_model_action(model, state)
+                action = action.flatten()
+                state, reward, done, reached, _, _ = env.step(action)
+                cummulative_reward += reward
 
-            rewards.append(reward)
-            action_log_probs.append(action_log_prob)
-            
-            ######
-            # Visualisation elements
-            if vis:
-                action_records.append(action)
-                path_records.append(env._state)
-                debug_info_records.append(debug_info)
-            # --------------------- 
-            if done:
-                break
-        if done:
-            break
+                rewards.append(reward)
+                action_log_probs.append(action_log_prob)
+
+                ######
+                # Visualisation elements
+                if vis:
+                    action_records.append(action)
+                    path_records.append(env._state)
+                    debug_info_records.append(debug_info)
+                # --------------------- 
+                if done:
+                    env.reset()
+                    break
 
         if adapt:
             assert len(rewards) > 1 and len(action_log_probs) > 1
-            update_policy(model, args, rewards, action_log_probs)
+            update_policy(model, optimizer, args, rewards, action_log_probs)
             rewards.clear()
             action_log_probs.clear()
 
@@ -101,10 +103,12 @@ def main(args):
     env = navigation_2d.Navigation2DEnv()
     env.seed(args.seed)
 
+    optimizer = torch.optim.Adam(policy.parameters(), lr=0.0001)
+
     for i_episode in count(1):
         state, ep_reward = env.reset(), 0
         for t in range(1, 200):  # Don't infinite loop while learning
-            action, action_log_prob = select_model_action(policy, state)
+            action, action_log_prob, _ = select_model_action(policy, state)
             action = action.flatten()
             state, reward, done, reached, _, _ = env.step(action)
             if args.render:
@@ -120,7 +124,7 @@ def main(args):
                 env.reset()
 
         running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        update_policy(policy, args, rewards, action_log_probs, learning_rate=0.0001)
+        update_policy(policy, optimizer, args, rewards, action_log_probs)
         rewards.clear()
         action_log_probs.clear()
         if i_episode % args.log_interval == 0:
