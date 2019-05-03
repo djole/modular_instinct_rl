@@ -6,7 +6,7 @@ from torch.distributions import Normal
 import numpy as np
 import time
 from model import ControllerCombinator
-from train_test_model import episode_rollout
+from train_test_model import train_maml_like
 import navigation_2d
 
 import os
@@ -175,8 +175,9 @@ class EA:
         return (self.population[max_idx], max_fitness)
 
     def fitness_calculation(self, individual, args, env, num_attempts=2):
-        fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
-        fits, reacheds, _ = list(zip(*fits))
+        # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
+        fits = [train_maml_like(individual.model, env, ri, args) for ri in range(num_attempts)]
+        fits, reacheds = list(zip(*fits))
         return sum(fits), sum(reacheds)
 
 def save_population(args, population, best_ind, generation_idx):

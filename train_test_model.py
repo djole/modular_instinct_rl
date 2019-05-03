@@ -40,14 +40,10 @@ def update_policy(model, optimizer, args, rewards, log_probs):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=True, num_episodes=20, vis=False):
+def episode_rollout(model, env, goal_index, vis=False):
     
     new_task = env.sample_tasks()
-    env.reset_task(new_task[rollout_index])
-
-    model = copy.deepcopy(init_model)
-
-    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=args.lr)
+    env.reset_task(new_task[goal_index])
 
     state = env.reset()
     cummulative_reward = 0
@@ -60,37 +56,59 @@ def episode_rollout(init_model, args, env, rollout_index, num_updates=1, adapt=T
     path_records = list()
     debug_info_records = list()
     # ---------------------
-    reached_global = 0
 
-    for up_idx in range(num_updates):
-        for ep_idx in range(num_episodes):
-            while True:
-                action, action_log_prob, debug_info = select_model_action(model, state)
-                action = action.flatten()
-                state, reward, done, reached, _, _ = env.step(action)
-                cummulative_reward += reward
+    while True:
+        action, action_log_prob, debug_info = select_model_action(model, state)
+        action = action.flatten()
+        state, reward, done, reached, _, _ = env.step(action)
+        cummulative_reward += reward
 
-                rewards.append(reward)
-                action_log_probs.append(action_log_prob)
-                reached_global += 1 if reached else 0
-                ######
-                # Visualisation elements
-                if vis:
-                    action_records.append(action)
-                    path_records.append(env._state)
-                    debug_info_records.append(debug_info)
-                # --------------------- 
-                if done:
-                    env.reset()
-                    break
+        rewards.append(reward)
+        action_log_probs.append(action_log_prob)
+        ######
+        # Visualisation elements
+        if vis:
+            action_records.append(action)
+            path_records.append(env._state)
+            debug_info_records.append(debug_info)
+        # --------------------- 
+        if done:
+            env.reset()
+            break
 
-        if adapt:
-            assert len(rewards) > 1 and len(action_log_probs) > 1
-            update_policy(model, optimizer, args, rewards, action_log_probs)
-            rewards.clear()
-            action_log_probs.clear()
+    return cummulative_reward, reached, (rewards, action_log_probs), (action_records, path_records, debug_info_records)
 
-    return cummulative_reward, reached_global, (action_records, path_records, debug_info_records)
+
+def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1):
+    new_task = env.sample_tasks()
+    env.reset_task(new_task[rollout_index])
+
+    model = copy.deepcopy(init_model)
+
+    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=args.lr)
+
+    rewards = []
+    action_log_probs = []
+
+    ### train
+    model.deterministic = False
+    for _ in range(num_updates):
+        for _ in range(num_episodes):
+            _, reached, (rewards_, action_log_probs_), _ = episode_rollout(model, env, rollout_index, False)
+            rewards.extend(rewards_)
+            action_log_probs.extend(action_log_probs_)
+
+        assert len(rewards) > 1 and len(action_log_probs) > 1
+        update_policy(model, optimizer, args, rewards, action_log_probs)
+        rewards.clear()
+        action_log_probs.clear()
+
+    ### evaluate
+    model.deterministic = True
+    fitness, reached, _, _ = episode_rollout(model, env, rollout_index, False)
+
+    return fitness, reached
+
 
 def main(args):
     fig = plt.figure() 
