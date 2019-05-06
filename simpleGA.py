@@ -174,7 +174,7 @@ class EA:
         
         return (self.population[max_idx], max_fitness)
 
-    def fitness_calculation(self, individual, args, env, num_attempts=2):
+    def fitness_calculation(self, individual, args, env, num_attempts=4):
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [train_maml_like(individual.model, env, ri, args) for ri in range(num_attempts)]
         fits, reacheds, _ = list(zip(*fits))
