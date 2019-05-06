@@ -54,6 +54,7 @@ def episode_rollout(model, env, goal_index, vis=False):
     # Visualisation elements
     action_records = list()
     path_records = list()
+    if vis: path_records.append(env._state)
     debug_info_records = list()
     # ---------------------
 
@@ -79,7 +80,7 @@ def episode_rollout(model, env, goal_index, vis=False):
     return cummulative_reward, reached, (rewards, action_log_probs), (action_records, path_records, debug_info_records)
 
 
-def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1):
+def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1, vis=False):
     new_task = env.sample_tasks()
     env.reset_task(new_task[rollout_index])
 
@@ -105,9 +106,9 @@ def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_u
 
     ### evaluate
     model.deterministic = True
-    fitness, reached, _, _ = episode_rollout(model, env, rollout_index, False)
+    fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
 
-    return fitness, reached
+    return fitness, reached, vis_info
 
 
 def main(args):
