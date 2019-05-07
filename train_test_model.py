@@ -42,8 +42,8 @@ def update_policy(model, optimizer, args, rewards, log_probs):
 
 def episode_rollout(model, env, goal_index, vis=False):
     
-    new_task = env.sample_tasks()
-    env.reset_task(new_task[goal_index])
+    #new_task = env.sample_tasks()
+    #env.reset_task(new_task[goal_index])
 
     state = env.reset()
     cummulative_reward = 0
@@ -82,7 +82,7 @@ def episode_rollout(model, env, goal_index, vis=False):
 
 def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1, vis=False):
     new_task = env.sample_tasks()
-    env.reset_task(new_task[rollout_index])
+    env.reset_task(new_task[0])
 
     model = copy.deepcopy(init_model)
 
