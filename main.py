@@ -13,7 +13,7 @@ def main():
     torch.manual_seed(args.seed)
 
     device = torch.device('cpu')
-    args.debug = False
+
     if args.debug:
         rollout(args, env, device, pop_size=10, elite_prop=0.1)
     else:
