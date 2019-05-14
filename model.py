@@ -50,7 +50,9 @@ class ControllerCombinator(torch.nn.Module):
         # Networks that will combine the outputs of the different elemenrts
         self.combinators = nn.ModuleList()
         for _ in range(D_out):
-            self.combinators.append(nn.Linear(N, 1))
+            self.combinators.append(nn.Sequential(nn.Linear(N,N*2),
+                nn.ReLU(),
+                nn.Linear(N*2, 1)))
      
         self.sigma = nn.Parameter(torch.Tensor(D_out))
 

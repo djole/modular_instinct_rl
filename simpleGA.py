@@ -49,7 +49,7 @@ class Individual:
 
 class EA:
     def _init_model(self, deterministic, init_sigma):
-        model = ControllerCombinator(D_IN, 2, D_HIDDEN, D_OUT, det=deterministic, init_std=init_sigma)
+        model = ControllerCombinator(D_IN, 4, D_HIDDEN, D_OUT, det=deterministic, init_std=init_sigma)
         return model
 
     def _compute_ranks(self, x):
@@ -222,8 +222,8 @@ def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
         solutions = solver.ask()
         fitness_calculation_ = partial(solver.fitness_calculation, env=env, args=args)
 
-        #with Pool(processes=NUM_PROC, maxtasksperchild=MAXTSK_CHLD) as pool:
-        fitness_list = list(map(fitness_calculation_, solutions))
+        with Pool(processes=NUM_PROC) as pool:
+            fitness_list = list(pool.map(fitness_calculation_, solutions))
 
         solver.tell(fitness_list)
         result, best_f = solver.step(iteration, args, device)
