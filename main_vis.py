@@ -31,18 +31,18 @@ def vis_path(path_rec, action_vec, model_info, goal):
     # --------------------
     # plot module 1 vectors
     # --------------------
-    votes1_xs, votes1_ys = zip(*votes1)
-    axis = plt.gca()
-    axis.quiver(prec[0], prec[1], votes1_xs, votes1_ys,
-                angles='xy', scale_units='xy', scale=1, color='blue', headaxislength=0, headlength=0)
+    #votes1_xs, votes1_ys = zip(*votes1)
+    #axis = plt.gca()
+    #axis.quiver(prec[0], prec[1], votes1_xs, votes1_ys,
+    #            angles='xy', scale_units='xy', scale=1, color='blue', headaxislength=0, headlength=0)
 
-    ### --------------------
-    ### plot module 2 vectors
-    ### --------------------
-    votes2_xs, votes2_ys = zip(*votes2)
-    axis = plt.gca()
-    axis.quiver(prec[0], prec[1], votes2_xs, votes2_ys,
-                angles='xy', scale_units='xy', scale=1, color='red', headaxislength=0, headlength=0)
+    #### --------------------
+    #### plot module 2 vectors
+    #### --------------------
+    #votes2_xs, votes2_ys = zip(*votes2)
+    #axis = plt.gca()
+    #axis.quiver(prec[0], prec[1], votes2_xs, votes2_ys,
+    #            angles='xy', scale_units='xy', scale=1, color='red', headaxislength=0, headlength=0)
 
     # --------------------
     # plot path
@@ -57,12 +57,13 @@ def main():
     args = get_args()
     task_idx = 1
     #model_filename = "./trained_models/pulled_from_server/model995.pt"
-    model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
+    #model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
+    model_filename = "./trained_models/pulled_from_server/4random_goals4modules20episode/model252.pt"
     m = torch.load(model_filename)
     #m = Controller(2, 100, 2)
     #m = ControllerCombinator(2, 2, 100, 2)
     env = navigation_2d.Navigation2DEnv()
-    env.seed(args.seed)
+    #env.seed(args.seed)
 
     ## DEBUGGING 
     #for p in m.parameters():
