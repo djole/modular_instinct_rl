@@ -58,7 +58,8 @@ def main():
     task_idx = 1
     #model_filename = "./trained_models/pulled_from_server/model995.pt"
     #model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
-    model_filename = "./trained_models/pulled_from_server/4random_goals4modules20episode/model252.pt"
+    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model597.pt"
+    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model977.pt"
     m = torch.load(model_filename)
     #m = Controller(2, 100, 2)
     #m = ControllerCombinator(2, 2, 100, 2)
