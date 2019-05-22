@@ -48,11 +48,9 @@ class ControllerCombinator(torch.nn.Module):
             self.elements.append(c)
       
         # Networks that will combine the outputs of the different elemenrts
-        self.combinators = nn.ModuleList()
-        for _ in range(D_out):
-            self.combinators.append(nn.Sequential(nn.Linear(N,N*2),
+        self.combinator = nn.Sequential(nn.Linear(N*D_out,N*D_out*2),
                 nn.ReLU(),
-                nn.Linear(N*2, 1)))
+                nn.Linear(N*D_out*2, D_out))
      
         self.sigma = nn.Parameter(torch.Tensor(D_out))
 
@@ -72,14 +70,14 @@ class ControllerCombinator(torch.nn.Module):
             votes_log_probs.append(vlp)
         
         votes_ = torch.stack(votes)
-        votes_t = torch.transpose(votes_, 0, 1)
+        votes_t = torch.flatten(votes_) #torch.transpose(votes_, 0, 1)
 
-        means = []
-        for vm, com in zip(votes_t, self.combinators):
-            means.append(com(vm))
+        means = self.combinator(votes_t)
+        #for vm, com in zip(votes_t, self.combinators):
+        #    means.append(com(vm))
 
-        means = torch.stack(means)
-        means = torch.flatten(means)
+        #means = torch.stack(means)
+        #means = torch.flatten(means)
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
         out = dist.mean if self.deterministic else dist.sample()
