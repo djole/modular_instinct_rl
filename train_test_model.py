@@ -81,12 +81,13 @@ def episode_rollout(model, env, goal_index, vis=False):
 
 
 def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1, vis=False):
+    env = navigation_2d.Navigation2DEnv()
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 
     model = copy.deepcopy(init_model)
 
-    optimizer = torch.optim.Adam(model.get_combinator_params(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     rewards = []
     action_log_probs = []
