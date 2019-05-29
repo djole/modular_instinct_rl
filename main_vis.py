@@ -58,8 +58,9 @@ def main():
     task_idx = 1
     #model_filename = "./trained_models/pulled_from_server/model995.pt"
     #model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model597.pt"
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model977.pt"
+    #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model597.pt"
+    #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model977.pt"
+    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
     m = torch.load(model_filename)
     #m = Controller(2, 100, 2)
     #m = ControllerCombinator(2, 2, 100, 2)
@@ -76,7 +77,7 @@ def main():
     c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=20, num_updates=1, vis=True)
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
-    vis_path(vis[1][:-1], vis[0], vis[2], env._goal)
+    vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
 
 if __name__ == '__main__':
     for _ in range(15):

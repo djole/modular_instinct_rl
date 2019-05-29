@@ -77,7 +77,7 @@ def episode_rollout(model, env, goal_index, vis=False):
             env.reset()
             break
 
-    return cummulative_reward, reached, (rewards, action_log_probs), (action_records, path_records, debug_info_records)
+    return cummulative_reward, reached, (rewards, action_log_probs), (action_records, path_records, debug_info_records, env._goal)
 
 
 def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1, vis=False):
