@@ -13,7 +13,7 @@ from torch.distributions import Categorical, Normal
 
 import copy
 
-from model import Controller, ControllerCombinator
+from model import Controller
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -87,7 +87,7 @@ def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_u
 
     model = copy.deepcopy(init_model)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=args.lr)
 
     rewards = []
     action_log_probs = []

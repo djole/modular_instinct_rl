@@ -47,6 +47,10 @@ def get_args():
     parser.add_argument('--ep-training', action='store_true', default=False)
     parser.add_argument("--init-sigma", type=positive_nonzero_float, default=1.0,
                         help="initialized value for the exploration sigma parameter")
+    parser.add_argument("--module-outputs", type=positive_nonzero_int,
+                             help="Define the number of outputs that a single module will have.")
+    parser.add_argument("--unfreeze-modules", action='store_true',
+                            help="unfreeze the module parameters for gradient optimization")
     args = parser.parse_args()
     args.cuda = False
 

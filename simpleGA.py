@@ -48,8 +48,8 @@ class Individual:
         self.model_plasticity_masks = []
 
 class EA:
-    def _init_model(self, deterministic, init_sigma):
-        model = ControllerCombinator(D_IN, 4, D_HIDDEN, D_OUT, det=deterministic, init_std=init_sigma)
+    def _init_model(self, deterministic, module_out, init_sigma):
+        model = ControllerCombinator(D_IN, 4, D_HIDDEN, D_OUT, module_out, det=deterministic, init_std=init_sigma)
         return model
 
     def _compute_ranks(self, x):
@@ -91,7 +91,7 @@ class EA:
                 print("Load individual from {}".format(saved_files[n]))
                 start_model = s[0]
             else:
-                start_model = self._init_model(args.deterministic, args.init_sigma)
+                start_model = self._init_model(args.deterministic, args.module_outputs, args.init_sigma)
 
             ind = Individual(start_model, device, rank=n)
 

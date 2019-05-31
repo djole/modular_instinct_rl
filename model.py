@@ -38,19 +38,21 @@ class Controller(torch.nn.Module):
        
 class ControllerCombinator(torch.nn.Module):
     ''' The combinator that is modified during lifetime'''
-    def __init__(self, D_in, N, H, D_out, min_std=1e-6, init_std=1.0, det=False):
+    def __init__(self, D_in, N, H, D_out, M_out, min_std=1e-6, init_std=1.0, det=False):
         super(ControllerCombinator, self).__init__()
     
         # Initialize the 
         self.elements = torch.nn.ModuleList()
         for i in range(N):
-            c = Controller(D_in, H, D_out)
+            c = Controller(D_in, H, M_out)
             self.elements.append(c)
       
         # Networks that will combine the outputs of the different elemenrts
-        self.combinator = nn.Sequential(nn.Linear(N*D_out,N*D_out*2),
+        d_input = N * M_out
+        d_hidden_layer = d_input * 2
+        self.combinator = nn.Sequential(nn.Linear(d_input, d_hidden_layer),
                 nn.ReLU(),
-                nn.Linear(N*D_out*2, D_out))
+                nn.Linear(d_hidden_layer, D_out))
      
         self.sigma = nn.Parameter(torch.Tensor(D_out))
 
@@ -96,10 +98,13 @@ class ControllerCombinator(torch.nn.Module):
             module.requires_grad = False
         self.combinator.requires_grad = True
     
-    def get_combinator_params(self):
-        comb_params = []
-        dct = self.named_parameters()
-        for pkey, ptensor in dct:
-            if 'combinator' in pkey or pkey == 'sigma':
-                comb_params.append(ptensor)
-        return comb_params
+    def get_combinator_params(self, unfreeze_modules=False):
+        if unfreeze_modules:
+            return self.parameters()
+        else:
+            comb_params = []
+            dct = self.named_parameters()
+            for pkey, ptensor in dct:
+                if 'combinator' in pkey or pkey == 'sigma':
+                    comb_params.append(ptensor)
+            return comb_params
