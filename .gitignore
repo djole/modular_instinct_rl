@@ -9,3 +9,5 @@ trained_models/*
 .vscode/
 scrap.py
 __pycache__/
+plots
+*.pyc
