@@ -81,9 +81,8 @@ class EA:
 
         for n in range(pop_size + self.to_select):
             if args.load_ga and n < pop_size:
-                s = torch.load(saved_files[n])
+                start_model = torch.load(saved_files[n])
                 print("Load individual from {}".format(saved_files[n]))
-                start_model = s[0]
             else:
                 start_model = self._init_model(args.deterministic, args.module_outputs, args.init_sigma)
 
