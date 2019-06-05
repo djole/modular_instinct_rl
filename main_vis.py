@@ -52,15 +52,15 @@ def vis_path(path_rec, action_vec, model_info, goal):
     plt.plot(goal[0], goal[1], 'r*')
     plt.show()
 
-def main():
-    '''Main'''
+def run(model_filename):
+    '''Run'''
     args = get_args()
     task_idx = 1
     #model_filename = "./trained_models/pulled_from_server/model995.pt"
     #model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
     #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model597.pt"
     #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model977.pt"
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
+    #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
     m = torch.load(model_filename)
     #m = Controller(2, 100, 2)
     #m = ControllerCombinator(2, 2, 100, 2)
@@ -77,8 +77,25 @@ def main():
     c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=20, num_updates=1, vis=True)
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
-    vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
+    #vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
+    return c_reward
+
+def main():
+    '''Main'''
+    import matplotlib.pyplot as plt
+
+    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
+    experiment1_fits1 = [run(model_filename) for _ in range(100)]
+    model_filename2 = "./trained_models/pulled_from_server/20random_goals_4modules8outputs_20episode_monolith_multiplexor/individual_999.pt"
+    experiment2_fits = [run(model_filename2) for _ in range(100)]
+
+    fig1, ax1 = plt.subplots()
+    ax1.set_title('Evaluation fitness')
+    ax1.boxplot([experiment1_fits1, experiment2_fits], labels=["2 outputs", "8 outputs"])
+    plt.show()
+
+
+    
 
 if __name__ == '__main__':
-    for _ in range(15):
-        main()
+    main()
