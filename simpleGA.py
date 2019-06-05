@@ -25,15 +25,9 @@ START_LEARNING_RATE = 7e-4
 D_IN, D_OUT, D_HIDDEN = 2, 2, 100
 
 def get_population_files(load_ga_dir):
-    gen_dir_names = [name for name in os.listdir(load_ga_dir) if (os.path.isdir(os.path.join(load_ga_dir, name)) and _is_number(name))]
-    gen_dir_names_nums = list(map(int, gen_dir_names))
-    gen_dir_names_nums.sort()
-    gen_dir_names = list(map(str, gen_dir_names_nums))
-    last_gen_dir = gen_dir_names[-1]
 
-    gen_dir = os.path.join(load_ga_dir, last_gen_dir)
-    ind_files =[name for name in os.listdir(gen_dir)]
-    ind_files = list(map(partial(os.path.join, load_ga_dir, last_gen_dir), ind_files))
+    ind_files =[name for name in os.listdir(load_ga_dir)]
+    ind_files = list(map(partial(os.path.join, load_ga_dir), ind_files))
 
     return ind_files
 

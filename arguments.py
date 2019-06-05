@@ -27,7 +27,7 @@ def get_args():
                         help='directory to save agent logs (default: ./trained_models/)')
     parser.add_argument('--load-ga', type=bool, default=False,
                         help='Load a saved state from the last generation found in the specified directiory')
-    parser.add_argument('--load-ga-dir', default='./trained_models/evolution/',
+    parser.add_argument('--load-ga-dir', default='./trained_models/evolution/___LAST___',
                         help='The directory from which the saved generation will be loaded')
     parser.add_argument('--debug', action='store_true', default=False)
 
