@@ -87,29 +87,36 @@ def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_u
 
     model = copy.deepcopy(init_model)
 
-    optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=args.lr)
+    optimizer = torch.optim.SGD(model.get_combinator_params(args.unfreeze_modules), lr=args.lr)
 
     rewards = []
     action_log_probs = []
 
-    ### train
-    model.deterministic = False
-    for _ in range(num_updates):
+    fitness_list = []
+    for u_idx in range(num_updates):
+        ### Train
+        model.deterministic = False
         for _ in range(num_episodes):
             _, reached, (rewards_, action_log_probs_), _ = episode_rollout(model, env, rollout_index, False)
             rewards.extend(rewards_)
             action_log_probs.extend(action_log_probs_)
+
+        # Reduce the learning rate of the optimizer by half in the first iteration
+        if u_idx == 0 and vis:
+            optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=(args.lr/2))
 
         assert len(rewards) > 1 and len(action_log_probs) > 1
         update_policy(model, optimizer, args, rewards, action_log_probs)
         rewards.clear()
         action_log_probs.clear()
 
-    ### evaluate
-    model.deterministic = True
-    fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
+        ### evaluate
+        model.deterministic = True
+        fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
+        fitness_list.append(fitness)
 
-    return fitness, reached, vis_info
+    ret_fit = fitness_list if vis else fitness_list[-1]
+    return ret_fit, reached, vis_info
 
 
 def main(args):
