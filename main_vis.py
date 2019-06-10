@@ -74,7 +74,7 @@ def run(model_filename):
 
     import numpy as np
     #c_reward, reached, _, vis = episode_rollout(module, env, 0, vis=True) 
-    c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=20, num_updates=1, vis=True)
+    c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=40, num_updates=3, vis=True)
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
     #vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
@@ -84,14 +84,16 @@ def main():
     '''Main'''
     import matplotlib.pyplot as plt
 
+    num_exp = 20
     model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
-    experiment1_fits1 = [run(model_filename) for _ in range(100)]
-    model_filename2 = "./trained_models/pulled_from_server/20random_goals_4modules8outputs_20episode_monolith_multiplexor/individual_999.pt"
-    experiment2_fits = [run(model_filename2) for _ in range(100)]
+    experiment1_fits1 = [run(model_filename) for _ in range(num_exp)]
+    model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_288.pt"
+    experiment2_fits = [run(model_filename2) for _ in range(num_exp)]
 
     fig1, ax1 = plt.subplots()
     ax1.set_title('Evaluation fitness')
-    ax1.boxplot([experiment1_fits1, experiment2_fits], labels=["2 outputs", "8 outputs"])
+    ax1.boxplot([experiment1_fits1, experiment2_fits], labels=["4 modules\n2 outputs per mod", "monolith"])
+    plt.savefig("./fig.jpg")
     plt.show()
 
 
