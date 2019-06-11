@@ -74,7 +74,7 @@ def run(model_filename):
 
     import numpy as np
     #c_reward, reached, _, vis = episode_rollout(module, env, 0, vis=True) 
-    c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=40, num_updates=3, vis=True)
+    c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=40, num_updates=0, vis=True)
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
     #vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
@@ -84,15 +84,28 @@ def main():
     '''Main'''
     import matplotlib.pyplot as plt
 
-    num_exp = 20
+    num_exp = 100
     model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
-    experiment1_fits1 = [run(model_filename) for _ in range(num_exp)]
+    experiment1_fits = [run(model_filename) for _ in range(num_exp)]
+    experiment1_fits = list(zip(*experiment1_fits))
     model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_288.pt"
     experiment2_fits = [run(model_filename2) for _ in range(num_exp)]
+    experiment2_fits = list(zip(*experiment2_fits))
 
-    fig1, ax1 = plt.subplots()
-    ax1.set_title('Evaluation fitness')
-    ax1.boxplot([experiment1_fits1, experiment2_fits], labels=["4 modules\n2 outputs per mod", "monolith"])
+    assert len(experiment1_fits) == len(experiment2_fits)
+    fig1, axs = plt.subplots(ncols=len(experiment1_fits))
+
+    try:
+        for i, ax in enumerate(axs):
+            ax.set_title('Evaluation fitness after {} updates'.format(i+1))
+            ax.boxplot([experiment1_fits[i], experiment2_fits[i]],
+                labels=["4 modules\n2 outputs per mod", "monolith"], showmeans=True)
+    except TypeError:
+        axs.set_title('Evaluation fitness after {} updates'.format(0))
+        axs.boxplot([experiment1_fits[0], experiment2_fits[0]],
+            labels=["4 modules\n2 outputs per mod", "monolith"], showmeans=True)
+
+    
     plt.savefig("./fig.jpg")
     plt.show()
 

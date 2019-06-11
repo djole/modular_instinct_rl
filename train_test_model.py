@@ -93,6 +93,12 @@ def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_u
     action_log_probs = []
 
     fitness_list = []
+    ### evaluate for the zero updates
+    if vis:
+        model.deterministic = True
+        fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
+        fitness_list.append(fitness)
+
     for u_idx in range(num_updates):
         ### Train
         model.deterministic = False
