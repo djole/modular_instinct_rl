@@ -43,7 +43,7 @@ class Individual:
 
 class EA:
     def _init_model(self, deterministic, module_out, init_sigma):
-        model = ControllerCombinator(D_IN, 4, D_HIDDEN, D_OUT, module_out, det=deterministic, init_std=init_sigma)
+        model = ControllerCombinator(D_IN, 8, D_HIDDEN, D_OUT, module_out, det=deterministic, init_std=init_sigma)
         return model
 
     def _compute_ranks(self, x):
@@ -71,7 +71,7 @@ class EA:
         self.reached = []
         self.args = args
         
-        self.sigma = 0.01
+        self.sigma = 0.03
         self.sigma_decay = 0.999
         self.min_sigma = 0.001
 
