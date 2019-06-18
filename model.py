@@ -8,9 +8,37 @@ def weight_init(module):
         nn.init.xavier_uniform_(module.weight)
         module.bias.data.zero_()
 
+class ControllerMonolithic(torch.nn.Module):
+    '''Class that represents the monolithic network'''
+    def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=1.0, det=False):
+        super(ControllerMonolithic, self).__init__()
+        self.din = D_in
+        self.dout = D_out
+        self.controller = nn.Sequential(nn.Linear(D_in, H),
+            nn.ReLU(),
+            nn.Linear(H, H),
+            nn.ReLU(),
+            nn.Linear(H, H),
+            nn.ReLU(),
+            nn.Linear(H, D_out))
+        self.sigma = nn.Parameter(torch.Tensor(D_out))
+        self.sigma.data.fill_(math.log(init_std))
+
+        self.min_log_std = math.log(min_std)
+        self.saved_log_probs = []
+        self.rewards = []
+        self.deterministic = det
+
+    def forward(self, x):
+        means = self.controller(x)
+        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
+        dist = torch.distributions.Normal(means, scales)
+        action = dist.mean if self.deterministic else dist.sample()
+        log_prob = 0 if self.deterministic else dist.log_prob(action)
+        return action, log_prob, None
 
 class Controller(torch.nn.Module):
-    '''Sigle element of the modular network'''
+    '''Single element of the modular network'''
     
     def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=1.0):
         super(Controller, self).__init__()
