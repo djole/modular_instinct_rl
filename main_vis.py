@@ -6,7 +6,7 @@ import numpy as np
 from train_test_model import episode_rollout, train_maml_like
 from arguments import get_args
 import navigation_2d
-from model import Controller, ControllerCombinator
+from model import ControllerMonolithic, ControllerCombinator
 
 def vis_path(path_rec, action_vec, model_info, goal):
     ''' Visualize the path '''
@@ -52,16 +52,16 @@ def vis_path(path_rec, action_vec, model_info, goal):
     plt.plot(goal[0], goal[1], 'r*')
     plt.show()
 
-def run(model_filename):
+def run(model, unfreeze):
     '''Run'''
     args = get_args()
+    args.unfreeze_modules = unfreeze
     task_idx = 1
     #model_filename = "./trained_models/pulled_from_server/model995.pt"
     #model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
     #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model597.pt"
     #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode/model977.pt"
     #model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
-    m = torch.load(model_filename)
     #m = Controller(2, 100, 2)
     #m = ControllerCombinator(2, 2, 100, 2)
     env = navigation_2d.Navigation2DEnv()
@@ -73,8 +73,8 @@ def run(model_filename):
     ###
 
     import numpy as np
-    #c_reward, reached, _, vis = episode_rollout(module, env, 0, vis=True) 
-    c_reward, reached, vis = train_maml_like(m, env, 1, args, num_episodes=40, num_updates=0, vis=True)
+    #c_reward, reached, _, vis = episode_rollout(module, env, vis=True) 
+    c_reward, reached, vis = train_maml_like(model, env, args, num_episodes=40, num_updates=4, vis=True)
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
     #vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
@@ -85,32 +85,39 @@ def main():
     import matplotlib.pyplot as plt
 
     num_exp = 100
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
-    experiment1_fits = [run(model_filename) for _ in range(num_exp)]
-    experiment1_fits = list(zip(*experiment1_fits))
-    model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_288.pt"
-    experiment2_fits = [run(model_filename2) for _ in range(num_exp)]
+    model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_829.pt"
+    m2_orig = torch.load(model_filename2)
+    m2 = ControllerMonolithic(2, 100, 2)
+    m2.load_state_dict(m2_orig.state_dict())
+    experiment2_fits = [run(m2, True) for _ in range(num_exp)]
     experiment2_fits = list(zip(*experiment2_fits))
 
-    assert len(experiment1_fits) == len(experiment2_fits)
+    model_filename = "./trained_models/pulled_from_server/20random_goals8modules20episode_lr01/individual_65.pt"
+    m1 = torch.load(model_filename)
+    experiment1_fits = [run(m1, False) for _ in range(num_exp)]
+    experiment1_fits = list(zip(*experiment1_fits))
+
+    model_filename3 = "./trained_models/pulled_from_server/20random_goals4modules20episode_lr01/individual_707.pt"
+    m3 = torch.load(model_filename3)
+    experiment3_fits = [run(m3, False) for _ in range(num_exp)]
+    experiment3_fits = list(zip(*experiment3_fits))
+
+    assert len(experiment1_fits) == len(experiment2_fits) and len(experiment2_fits) == len(experiment3_fits)
     fig1, axs = plt.subplots(ncols=len(experiment1_fits))
 
     try:
         for i, ax in enumerate(axs):
-            ax.set_title('Evaluation fitness after {} updates'.format(i+1))
-            ax.boxplot([experiment1_fits[i], experiment2_fits[i]],
-                labels=["4 modules\n2 outputs per mod", "monolith"], showmeans=True)
+            ax.set_title('Evaluation fitness after {} updates, lr=0.1'.format(i))
+            ax.boxplot([experiment1_fits[i], experiment2_fits[i], experiment3_fits[i]],
+                labels=["8 modules\n2 outputs per mod", "monolith", "4 modules\n2 outputs per mod"], showmeans=True)
     except TypeError:
         axs.set_title('Evaluation fitness after {} updates'.format(0))
-        axs.boxplot([experiment1_fits[0], experiment2_fits[0]],
-            labels=["4 modules\n2 outputs per mod", "monolith"], showmeans=True)
+        axs.boxplot([experiment1_fits[0], experiment2_fits[0], experiment3_fits[0]],
+            labels=["8 modules\n2 outputs per mod", "monolith", "4 modules\n2 outputs per mod"], showmeans=True)
 
     
     plt.savefig("./fig.jpg")
     plt.show()
-
-
-    
 
 if __name__ == '__main__':
     main()

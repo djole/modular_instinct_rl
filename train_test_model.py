@@ -11,9 +11,11 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 
+from model import ControllerCombinator
+
 import copy
 
-from model import Controller
+from model import Controller, ControllerCombinator
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -24,7 +26,7 @@ def select_model_action(model, state):
     #return action.item()
     return action.detach().numpy(), action_log_prob, debug_info
 
-def update_policy(model, optimizer, args, rewards, log_probs):
+def update_policy(optimizer, args, rewards, log_probs):
     R = 0
     policy_loss = []
     returns = []
@@ -40,7 +42,7 @@ def update_policy(model, optimizer, args, rewards, log_probs):
     policy_loss.backward()
     optimizer.step()
 
-def episode_rollout(model, env, goal_index, vis=False):
+def episode_rollout(model, env, vis=False):
     
     #new_task = env.sample_tasks()
     #env.reset_task(new_task[goal_index])
@@ -80,14 +82,18 @@ def episode_rollout(model, env, goal_index, vis=False):
     return cummulative_reward, reached, (rewards, action_log_probs), (action_records, path_records, debug_info_records, env._goal)
 
 
-def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_updates=1, vis=False):
+def train_maml_like(init_model, env, args, num_episodes=20, num_updates=1, vis=False):
     env = navigation_2d.Navigation2DEnv()
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 
     model = copy.deepcopy(init_model)
 
-    optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=args.lr)
+    optimizer = None
+    if isinstance(model, ControllerCombinator):
+        optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=args.lr)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     rewards = []
     action_log_probs = []
@@ -96,83 +102,32 @@ def train_maml_like(init_model, env, rollout_index, args, num_episodes=20, num_u
     ### evaluate for the zero updates
     if vis:
         model.deterministic = True
-        fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
+        fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
         fitness_list.append(fitness)
 
     for u_idx in range(num_updates):
         ### Train
         model.deterministic = False
         for _ in range(num_episodes):
-            _, reached, (rewards_, action_log_probs_), _ = episode_rollout(model, env, rollout_index, False)
+            _, reached, (rewards_, action_log_probs_), _ = episode_rollout(model, env, False)
             rewards.extend(rewards_)
             action_log_probs.extend(action_log_probs_)
 
         # Reduce the learning rate of the optimizer by half in the first iteration
         if u_idx == 0 and vis:
-            optimizer = torch.optim.Adam(model.get_combinator_params(args.unfreeze_modules), lr=(args.lr/2))
+            new_learning_rate = args.lr / 2.
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = new_learning_rate
 
         assert len(rewards) > 1 and len(action_log_probs) > 1
-        update_policy(model, optimizer, args, rewards, action_log_probs)
+        update_policy(optimizer, args, rewards, action_log_probs)
         rewards.clear()
         action_log_probs.clear()
 
         ### evaluate
         model.deterministic = True
-        fitness, reached, _, vis_info = episode_rollout(model, env, rollout_index, vis=vis)
+        fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
         fitness_list.append(fitness)
 
     ret_fit = fitness_list if vis else fitness_list[-1]
     return ret_fit, reached, vis_info
-
-
-def main(args):
-    fig = plt.figure() 
-    plt.ion()
-    plt.show()
-    policy = Controller(2, 100, 2)
-    running_reward = 0
-    reward_buffer = deque(maxlen=10)
-    rewards = []
-    action_log_probs = []
-
-    env = navigation_2d.Navigation2DEnv()
-    env.seed(args.seed)
-
-    optimizer = torch.optim.Adam(policy.parameters(), lr=0.0001)
-
-    for i_episode in count(1):
-        state, ep_reward = env.reset(), 0
-        for t in range(1, 200):  # Don't infinite loop while learning
-            action, action_log_prob, _ = select_model_action(policy, state)
-            action = action.flatten()
-            state, reward, done, reached, _, _ = env.step(action)
-            if args.render:
-                env.render()
-            rewards.append(reward)
-            action_log_probs.append(action_log_prob)
-            ep_reward += reward
-            if done:
-                if reached:
-                    print("Reached! cummulative reward {}".format(env.cummulative_reward))
-                    #input()
-                reward_buffer.append(env.cummulative_reward)
-                env.reset()
-
-        running_reward = 0.05 * ep_reward + (1 - 0.05) * running_reward
-        update_policy(policy, optimizer, args, rewards, action_log_probs)
-        rewards.clear()
-        action_log_probs.clear()
-        if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast reward: {:.2f}\tAverage reward form last ten episodes: {:.2f}'.format(
-                  i_episode, ep_reward, sum(reward_buffer)/float(len(reward_buffer))))
-            #env.render()
-
-        if running_reward > 0:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
-            break
-
-
-if __name__ == '__main__':
-    from arguments import get_args
-    main(get_args())
