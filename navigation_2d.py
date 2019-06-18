@@ -1,10 +1,9 @@
-import numpy as np
-
+""" 2D navigation environment """
 import gym
+import matplotlib.pyplot as plt
+import numpy as np
 from gym import spaces
 from gym.utils import seeding
-
-import matplotlib.pyplot as plt
 
 HORIZON = 100
 
@@ -25,17 +24,18 @@ class Navigation2DEnv(gym.Env):
         Meta-Learning for Fast Adaptation of Deep Networks", 2017 
         (https://arxiv.org/abs/1703.03400)
     """
+
     def __init__(self, task={}):
         super(Navigation2DEnv, self).__init__()
 
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf,
-            shape=(2,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-0.1, high=0.1,
-            shape=(2,), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=-np.inf, high=np.inf, shape=(2,), dtype=np.float32
+        )
+        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
 
         self._task = task
-        self._goal = task.get('goal', np.zeros(2, dtype=np.float32))
-        self._state = np.array(START)#np.zeros(2, dtype=np.float32)
+        self._goal = task.get("goal", np.zeros(2, dtype=np.float32))
+        self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
         self.seed()
         self.horizon = HORIZON
         self.cummulative_reward = 0
@@ -50,16 +50,16 @@ class Navigation2DEnv(gym.Env):
 
     def sample_tasks(self):
         goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
-        #goals = np.array(self.task_sequence)
-        tasks = [{'goal': goal} for goal in goals]
+        # goals = np.array(self.task_sequence)
+        tasks = [{"goal": goal} for goal in goals]
         return tasks
 
     def reset_task(self, task):
         self._task = task
-        self._goal = task['goal']
+        self._goal = task["goal"]
 
     def reset(self, env=True):
-        self._state = np.array(START)#np.zeros(2, dtype=np.float32)
+        self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
         self.horizon = HORIZON
         self.cummulative_reward = 0
         self.episode_x_path.clear()
@@ -75,7 +75,7 @@ class Navigation2DEnv(gym.Env):
         y = self._state[1] - self._goal[1]
         reward = -np.sqrt(x ** 2 + y ** 2)
 
-        reached = ((np.abs(x) < 0.01) and (np.abs(y) < 0.01))
+        reached = (np.abs(x) < 0.01) and (np.abs(y) < 0.01)
         done = reached or self.horizon <= 0
         self.horizon -= 1
         self.cummulative_reward += reward
@@ -84,9 +84,9 @@ class Navigation2DEnv(gym.Env):
         self.episode_y_path.append(self._state[1])
 
         return self._state, reward, done, reached, self.cummulative_reward, self._task
-    
+
     def render_episode(self):
-        fig = plt.figure()
+        plt.figure()
         plt.plot(self.episode_x_path, self.episode_y_path)
-        plt.plot(self._goal[0], self._goal[1], 'r*')
+        plt.plot(self._goal[0], self._goal[1], "r*")
         plt.show()
