@@ -63,10 +63,16 @@ def get_args():
         help="discount factor (default: 0.99)",
     )
     parser.add_argument(
-        "--lr", type=float, default=0.1, help="learning rate (default: 0.1)"
+        "--lr", type=float, default=0.01, help="learning rate (default: 0.01)"
     )
     parser.add_argument("--deterministic", action="store_true", default=False)
     parser.add_argument("--ep-training", action="store_true", default=False)
+    parser.add_argument(
+        "--sees-inputs",
+        action="store_true",
+        default=False,
+        help=" If TRUE, the combinator sees the inputs to the model as well",
+    )
     parser.add_argument(
         "--init-sigma",
         type=positive_nonzero_float,
@@ -79,8 +85,21 @@ def get_args():
         help="Define the number of outputs that a single module will have.",
     )
     parser.add_argument(
+        "--num-modules",
+        type=positive_nonzero_int,
+        default=4,
+        help="Define the number of modules in the model.",
+    )
+    parser.add_argument(
+        "--num-proc",
+        type=positive_nonzero_int,
+        default=5,
+        help="Define over how many processes to parallelize the fitness evaluation.",
+    )
+    parser.add_argument(
         "--unfreeze-modules",
         action="store_true",
+        default=False,
         help="unfreeze the module parameters for gradient optimization",
     )
     args = parser.parse_args()

@@ -37,9 +37,18 @@ class Individual:
 
 
 class EA:
-    def _init_model(self, deterministic, module_out, init_sigma):
+    def _init_model(
+        self, deterministic, num_modules, module_out, init_sigma, sees_inputs
+    ):
         model = ControllerCombinator(
-            D_IN, 8, D_HIDDEN, D_OUT, module_out, det=deterministic, init_std=init_sigma
+            D_IN,
+            num_modules,
+            D_HIDDEN,
+            D_OUT,
+            module_out,
+            det=deterministic,
+            init_std=init_sigma,
+            sees_inputs=sees_inputs,
         )
         return model
 
@@ -83,7 +92,11 @@ class EA:
                 print("Load individual from {}".format(saved_files[n]))
             else:
                 start_model = self._init_model(
-                    args.deterministic, args.module_outputs, args.init_sigma
+                    args.deterministic,
+                    args.num_modules,
+                    args.module_outputs,
+                    args.init_sigma,
+                    args.sees_inputs,
                 )
 
             ind = Individual(start_model, device, rank=n)
@@ -236,9 +249,11 @@ def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
         start_time = time.time()
         solutions = solver.ask()
         fitness_calculation_ = partial(solver.fitness_calculation, env=env, args=args)
-
-        with Pool(processes=NUM_PROC) as pool:
-            fitness_list = list(pool.map(fitness_calculation_, solutions))
+        if args.debug:
+            fitness_list = list(map(fitness_calculation_, solutions))
+        else:
+            with Pool(processes=args.num_proc) as pool:
+                fitness_list = list(pool.map(fitness_calculation_, solutions))
 
         solver.tell(fitness_list)
         result, best_f = solver.step(iteration, args, device)

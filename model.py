@@ -76,7 +76,18 @@ class Controller(torch.nn.Module):
 class ControllerCombinator(torch.nn.Module):
     """ The combinator that is modified during lifetime"""
 
-    def __init__(self, D_in, N, H, D_out, M_out, min_std=1e-6, init_std=1.0, det=False):
+    def __init__(
+        self,
+        D_in,
+        N,
+        H,
+        D_out,
+        M_out,
+        min_std=1e-6,
+        init_std=1.0,
+        det=False,
+        sees_inputs=False,
+    ):
         super(ControllerCombinator, self).__init__()
 
         # Initialize the
@@ -87,6 +98,8 @@ class ControllerCombinator(torch.nn.Module):
 
         # Networks that will combine the outputs of the different elemenrts
         d_input = N * M_out
+        if sees_inputs:
+            d_input += D_in
         d_hidden_layer = d_input * 2
         self.combinator = nn.Sequential(
             nn.Linear(d_input, d_hidden_layer),
@@ -101,6 +114,7 @@ class ControllerCombinator(torch.nn.Module):
         self.sigma.data.fill_(math.log(init_std))
         self.min_log_std = math.log(min_std)
         self.deterministic = det
+        self.sees_inputs = sees_inputs
 
     def forward(self, x):
         votes = []
@@ -112,6 +126,8 @@ class ControllerCombinator(torch.nn.Module):
 
         votes_ = torch.stack(votes)
         votes_t = torch.flatten(votes_)  # torch.transpose(votes_, 0, 1)
+        if self.sees_inputs:
+            votes_t = torch.cat((votes_t, x))
 
         means = self.combinator(votes_t)
         # for vm, com in zip(votes_t, self.combinators):
