@@ -10,9 +10,10 @@ from model import ControllerCombinator, ControllerMonolithic
 from train_test_model import episode_rollout, train_maml_like
 
 
-NUM_EPISODES = 2
+NUM_EPISODES = 40
 NUM_UPDATES = 2
 NUM_EXP = 5
+MODEL_PATH = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_880.pt"
 
 
 def vis_path(path_rec, action_vec, model_info, goal):
@@ -20,11 +21,11 @@ def vis_path(path_rec, action_vec, model_info, goal):
     plt.figure()
 
     unzipped_info = list(zip(*model_info))
-    unzipped_info[0]
+    # unzipped_info[0]
     votes = unzipped_info[1]
     votes = list(map(lambda x: np.split(x, 2), votes))
-    votes1 = list(map(lambda x: x[0], votes))
-    votes2 = list(map(lambda x: x[1], votes))
+    # votes1 = list(map(lambda x: x[0], votes))
+    # votes2 = list(map(lambda x: x[1], votes))
 
     prec = list(zip(*path_rec))
     # --------------------
@@ -75,15 +76,13 @@ def run(model, unfreeze):
     env = navigation_2d.Navigation2DEnv()
     # env.seed(args.seed)
 
-    import numpy as np
-
     # c_reward, reached, _, vis = episode_rollout(module, env, vis=True)
     c_reward, reached, vis = train_maml_like(
         model, env, args, num_episodes=NUM_EPISODES, num_updates=NUM_UPDATES, vis=True
     )
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
-    # vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
+    vis_path(vis[1][:-1], vis[0], vis[2], vis[3])
     return c_reward
 
 
@@ -93,9 +92,7 @@ def main():
 
     num_exp = NUM_EXP
 
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_880.pt"
-    model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_328.pt"
-    model_filename3 = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor_input2multiplexor/individual_208.pt"
+    model_filename = MODEL_PATH
 
     m1_orig = torch.load(model_filename)
     m1 = ControllerCombinator(2, 4, 100, 2, 2, sees_inputs=False)
@@ -104,45 +101,6 @@ def main():
     experiment1_fits = list(zip(*experiment1_fits))
     with open("experiment1.list", "wb") as pckl_file1:
         pickle.dump(experiment1_fits, pckl_file1)
-
-    m2_orig = torch.load(model_filename2)
-    m2 = ControllerMonolithic(2, 100, 2)
-    m2.load_state_dict(m2_orig.state_dict())
-    experiment2_fits = [run(m2, True) for _ in range(num_exp)]
-    experiment2_fits = list(zip(*experiment2_fits))
-    with open("experiment2.list", "wb") as pckl_file2:
-        pickle.dump(experiment2_fits, pckl_file2)
-
-    m3 = torch.load(model_filename3)
-    # m3 = ControllerCombinator(2, 4, 100, )
-    # m3.load_state_dict(m3_orig.state_dict())
-    experiment3_fits = [run(m3, False) for _ in range(num_exp)]
-    experiment3_fits = list(zip(*experiment3_fits))
-    with open("experiment3.list", "wb") as pckl_file3:
-        pickle.dump(experiment3_fits, pckl_file3)
-
-    assert len(experiment1_fits) == len(experiment2_fits)
-    fig1, axs = plt.subplots(ncols=len(experiment1_fits))
-
-    try:
-        labels = ["4 mods", "monolith", "4 mods\ninput2combinator"]
-        for i, ax in enumerate(axs):
-            ax.set_title("Eval. fitness {} updates".format(i))
-            ax.boxplot(
-                [experiment1_fits[i], experiment2_fits[i], experiment3_fits[i]],
-                labels=labels,
-                showmeans=True,
-            )
-    except TypeError:
-        axs.set_title("Eval. fitness {} updates".format(0))
-        axs.boxplot(
-            [experiment1_fits[0], experiment2_fits[0], experiment3_fits[0]],
-            labels=labels,
-            showmeans=True,
-        )
-
-    plt.savefig("./fig.jpg")
-    plt.show()
 
 
 if __name__ == "__main__":

@@ -248,7 +248,14 @@ def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
     for iteration in range(1000):
         start_time = time.time()
         solutions = solver.ask()
-        fitness_calculation_ = partial(solver.fitness_calculation, env=env, args=args)
+        if args.debug:
+            num_env_samples = 2
+        else:
+            num_env_samples = 20
+
+        fitness_calculation_ = partial(
+            solver.fitness_calculation, env=env, args=args, num_attempts=num_env_samples
+        )
         if args.debug:
             fitness_list = list(map(fitness_calculation_, solutions))
         else:

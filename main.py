@@ -17,7 +17,7 @@ def main():
     device = torch.device("cpu")
 
     if args.debug:
-        rollout(args, env, device, pop_size=10, elite_prop=0.1)
+        rollout(args, env, device, pop_size=5, elite_prop=0.2)
     else:
         rollout(args, env, device)
 
