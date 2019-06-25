@@ -4,6 +4,7 @@ import os
 import time
 from functools import partial
 from multiprocessing import Pool
+from statistics import median
 
 import numpy as np
 import torch
@@ -196,7 +197,7 @@ class EA:
             train_maml_like(individual.model, env, args) for _ in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
-        return sum(fits), sum(reacheds)
+        return median(fits), sum(reacheds)
 
 
 def save_population(args, population, best_ind, generation_idx):
