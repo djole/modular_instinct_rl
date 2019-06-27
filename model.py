@@ -163,3 +163,21 @@ class ControllerCombinator(torch.nn.Module):
                 if "combinator" in pkey or pkey == "sigma":
                     comb_params.append(ptensor)
             return comb_params
+
+
+def init_model(din, dout, args):
+    """ Method that gives instantiates the model depending on the program arguments """
+    if args.monolithic_baseline:
+        model = ControllerMonolithic(D_in=din, H=args.hidden_size, D_out=dout)
+    else:
+        model = ControllerCombinator(
+            D_in=din,
+            N=args.num_modules,
+            H=args.hidden_size,
+            D_out=dout,
+            M_out=args.module_outputs,
+            det=args.deterministic,
+            init_std=args.init_sigma,
+            sees_inputs=args.sees_inputs,
+        )
+    return model

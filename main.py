@@ -4,6 +4,8 @@ import torch
 import navigation_2d
 from simpleGA import rollout
 
+D_IN, D_OUT = 2, 2
+
 
 def main():
     from arguments import get_args
@@ -17,9 +19,9 @@ def main():
     device = torch.device("cpu")
 
     if args.debug:
-        rollout(args, env, device, pop_size=5, elite_prop=0.2)
+        rollout(args, env, D_IN, D_OUT, device, pop_size=5, elite_prop=0.2)
     else:
-        rollout(args, env, device)
+        rollout(args, env, D_IN, D_OUT, device)
 
 
 if __name__ == "__main__":

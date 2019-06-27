@@ -10,13 +10,11 @@ import numpy as np
 import torch
 
 import navigation_2d
-from model import ControllerCombinator
+from model import init_model
 from train_test_model import train_maml_like
 
-NUM_PROC = 5
-MAXTSK_CHLD = 10
+# MAXTSK_CHLD = 10
 START_LEARNING_RATE = 7e-4
-D_IN, D_OUT, D_HIDDEN = 2, 2, 100
 
 
 def get_population_files(load_ga_dir):
@@ -38,20 +36,7 @@ class Individual:
 
 
 class EA:
-    def _init_model(
-        self, deterministic, num_modules, module_out, init_sigma, sees_inputs
-    ):
-        model = ControllerCombinator(
-            D_IN,
-            num_modules,
-            D_HIDDEN,
-            D_OUT,
-            module_out,
-            det=deterministic,
-            init_std=init_sigma,
-            sees_inputs=sees_inputs,
-        )
-        return model
+    """  """
 
     def _compute_ranks(self, x):
         assert x.ndim == 1
@@ -66,7 +51,7 @@ class EA:
         y -= 0.5
         return y.tolist()
 
-    def __init__(self, args, device, pop_size, elite_prop):
+    def __init__(self, args, device, pop_size, elite_prop, din, dout):
         if pop_size < 1:
             raise ValueError(
                 "Population size has to be one or greater, otherwise this doesn't make sense"
@@ -92,13 +77,7 @@ class EA:
                 start_model = torch.load(saved_files[n])
                 print("Load individual from {}".format(saved_files[n]))
             else:
-                start_model = self._init_model(
-                    args.deterministic,
-                    args.num_modules,
-                    args.module_outputs,
-                    args.init_sigma,
-                    args.sees_inputs,
-                )
+                start_model = init_model(din, dout, args)
 
             ind = Individual(start_model, device, rank=n)
 
@@ -232,7 +211,7 @@ def save_population(args, population, best_ind, generation_idx):
     )
 
 
-def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
+def rollout(args, env, din, dout, device, pop_size=100, elite_prop=0.1, debug=False):
     assert (
         elite_prop < 1.0 and elite_prop > 0.0
     ), "Elite needs to be a measure of proportion of population, 0 < elite_prop < 1"
@@ -244,7 +223,7 @@ def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    solver = EA(args, device, pop_size, elite_prop=elite_prop)
+    solver = EA(args, device, pop_size, elite_prop=elite_prop, din=dout, dout=dout)
     fitness_list = [0 for _ in range(pop_size)]
     for iteration in range(1000):
         start_time = time.time()
@@ -278,23 +257,3 @@ def rollout(args, env, device, pop_size=100, elite_prop=0.1, debug=False):
         )
         print("wall clock time == {}".format(gen_time - start_time))
     return result
-
-
-def main():
-    """ main """
-    from arguments import get_args
-
-    args = get_args()
-    device = torch.device("cpu")
-    args.debug = False
-    env = navigation_2d.Navigation2DEnv()
-    env.seed(args.seed)
-    torch.manual_seed(args.seed)
-    if args.debug:
-        rollout(args, env, device, pop_size=10, elite_prop=0.1)
-    else:
-        rollout(args, env, device)
-
-
-if __name__ == "__main__":
-    main()

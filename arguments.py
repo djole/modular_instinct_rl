@@ -82,7 +82,14 @@ def get_args():
     parser.add_argument(
         "--module-outputs",
         type=positive_nonzero_int,
+        default=2,
         help="Define the number of outputs that a single module will have.",
+    )
+    parser.add_argument(
+        "--hidden-size",
+        type=positive_nonzero_int,
+        default=100,
+        help="Define the number of neurons in the hidden layer of a module.",
     )
     parser.add_argument(
         "--num-modules",
@@ -101,6 +108,12 @@ def get_args():
         action="store_true",
         default=False,
         help="unfreeze the module parameters for gradient optimization",
+    )
+    parser.add_argument(
+        "--monolithic-baseline",
+        action="store_true",
+        default=False,
+        help="run the experiment with a monolithic network model.",
     )
     args = parser.parse_args()
     args.cuda = False
