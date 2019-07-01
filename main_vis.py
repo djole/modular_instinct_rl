@@ -10,9 +10,9 @@ from model import ControllerCombinator, ControllerMonolithic
 from train_test_model import episode_rollout, train_maml_like
 
 
-NUM_EPISODES = 2
-NUM_UPDATES = 2
-NUM_EXP = 5
+NUM_EPISODES = 40
+NUM_UPDATES = 1
+NUM_EXP = 20
 
 
 def vis_path(path_rec, action_vec, model_info, goal):
