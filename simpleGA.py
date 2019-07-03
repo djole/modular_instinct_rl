@@ -176,7 +176,7 @@ class EA:
             train_maml_like(individual.model, env, args) for _ in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
-        return median(fits), sum(reacheds)
+        return sum(fits), sum(reacheds)
 
 
 def save_population(args, population, best_ind, generation_idx):
