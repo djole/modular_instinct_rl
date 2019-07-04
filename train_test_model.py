@@ -80,7 +80,7 @@ def episode_rollout(model, env, vis=False):
     )
 
 
-def train_maml_like(init_model, env, args, num_episodes=20, num_updates=1, vis=False):
+def train_maml_like(init_model, args, num_episodes=20, num_updates=1, vis=False):
     env = navigation_2d.Navigation2DEnv()
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])

@@ -5,6 +5,8 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
+from math import pi, cos, sin
+
 HORIZON = 100
 
 START = [0.0, 0.0]
@@ -44,12 +46,20 @@ class Navigation2DEnv(gym.Env):
 
         self.task_sequence = [[0.7, 0.35], [-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35]]
 
+    def _sample_ring_task(self):
+        radius = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
+        alpha = self.np_random.uniform(0.0, 1.0, size=(1, 1)) * 2 * pi
+        alpha = alpha[0][0]
+        goal = np.array([[radius * cos(alpha), radius * sin(alpha)]])
+        return goal
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def sample_tasks(self):
-        goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
+        goals = self._sample_ring_task()
+        # goals = self.np_random.uniform(0.3, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
         return tasks

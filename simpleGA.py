@@ -170,11 +170,9 @@ class EA:
 
         return (self.population[max_idx], max_fitness)
 
-    def fitness_calculation(self, individual, args, env, num_attempts=20):
+    def fitness_calculation(self, individual, args, num_attempts=20):
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
-        fits = [
-            train_maml_like(individual.model, env, args) for _ in range(num_attempts)
-        ]
+        fits = [train_maml_like(individual.model, args) for _ in range(num_attempts)]
         fits, reacheds, _ = list(zip(*fits))
         return sum(fits), sum(reacheds)
 
@@ -211,7 +209,7 @@ def save_population(args, population, best_ind, generation_idx):
     )
 
 
-def rollout(args, env, din, dout, device, pop_size=100, elite_prop=0.1, debug=False):
+def rollout(args, din, dout, device, pop_size=100, elite_prop=0.1, debug=False):
     assert (
         elite_prop < 1.0 and elite_prop > 0.0
     ), "Elite needs to be a measure of proportion of population, 0 < elite_prop < 1"
@@ -223,7 +221,7 @@ def rollout(args, env, din, dout, device, pop_size=100, elite_prop=0.1, debug=Fa
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    solver = EA(args, device, pop_size, elite_prop=elite_prop, din=dout, dout=dout)
+    solver = EA(args, device, pop_size, elite_prop=elite_prop, din=din, dout=dout)
     fitness_list = [0 for _ in range(pop_size)]
     for iteration in range(1000):
         start_time = time.time()
@@ -234,7 +232,7 @@ def rollout(args, env, din, dout, device, pop_size=100, elite_prop=0.1, debug=Fa
             num_env_samples = 20
 
         fitness_calculation_ = partial(
-            solver.fitness_calculation, env=env, args=args, num_attempts=num_env_samples
+            solver.fitness_calculation, args=args, num_attempts=num_env_samples
         )
         if args.debug:
             fitness_list = list(map(fitness_calculation_, solutions))
