@@ -26,17 +26,20 @@ def get_population_files(load_ga_dir):
 
 
 class Individual:
-    def __init__(self, model, device, rank):
+    """ A struct containing the evolvable elements per individual """
+
+    def __init__(self, model, device, rank, learn_rate):
         self.model = model
         self.device = device
         self.rank = rank
         # A set of masks that will prevent some weigths from being changed by the optimizer
         # The mask is initialized to all ones to maintain the default behavior
         self.model_plasticity_masks = []
+        self.learning_rate = learn_rate
 
 
 class EA:
-    """  """
+    """ EA class """
 
     def _compute_ranks(self, x):
         assert x.ndim == 1
@@ -74,12 +77,13 @@ class EA:
 
         for n in range(pop_size + self.to_select):
             if args.load_ga and n < pop_size:
-                start_model = torch.load(saved_files[n])
+                start_model, start_lr = torch.load(saved_files[n])
                 print("Load individual from {}".format(saved_files[n]))
             else:
                 start_model = init_model(din, dout, args)
+                start_lr = args.lr
 
-            ind = Individual(start_model, device, rank=n)
+            ind = Individual(start_model, device, rank=n, learn_rate=start_lr)
 
             if n < self.pop_size:
                 self.population.append(ind)
@@ -132,6 +136,7 @@ class EA:
             )
         )
         print("best in the population ----> ", sorted_fit_idxs[0][0])
+        print("best's learning rate ------>", self.population[max_idx].learning_rate)
         print("best in population reached {} goals".format(self.reached[max_idx]))
         # print("best in the population after stabilization", re_fit_max)
         print("worst in the population ----> ", sorted_fit_idxs[-1][0])
@@ -158,10 +163,14 @@ class EA:
             parent = self.selected[dart]
             indiv = self.population[i]
             indiv.model.load_state_dict(parent.model.state_dict())
-            # apply mutation
+            # apply mutation to model parameters
             for p in indiv.model.parameters():
                 mutation = torch.randn_like(p.data) * self.sigma
                 p.data += mutation
+            # apply mutation to learning rate
+            indiv.learning_rate += torch.randn((1, 1)).item() * 0.01
+            if indiv.learning_rate < 0:
+                indiv.learning_rate *= -1
 
         if self.sigma > self.min_sigma:
             self.sigma *= self.sigma_decay
@@ -172,7 +181,10 @@ class EA:
 
     def fitness_calculation(self, individual, args, num_attempts=20):
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
-        fits = [train_maml_like(individual.model, args) for _ in range(num_attempts)]
+        fits = [
+            train_maml_like(individual.model, args, individual.learning_rate)
+            for _ in range(num_attempts)
+        ]
         fits, reacheds, _ = list(zip(*fits))
         return sum(fits), sum(reacheds)
 
@@ -190,11 +202,12 @@ def save_population(args, population, best_ind, generation_idx):
 
     for individual in population:
         save_model = individual.model
+        save_lr = individual.learning_rate
         if args.cuda:
             save_model = copy.deepcopy(individual.model).cpu()
 
         torch.save(
-            save_model,
+            (save_model, save_lr),
             os.path.join(
                 save_path_checkpoint, "individual_" + str(individual.rank) + ".pt"
             ),
@@ -202,10 +215,12 @@ def save_population(args, population, best_ind, generation_idx):
 
     # Save the best
     save_model = best_ind.model
+    save_lr = best_ind.learning_rate
     if args.cuda:
         save_model = copy.deepcopy(best_ind.model).cpu()
     torch.save(
-        save_model, os.path.join(save_path, "individual_" + str(generation_idx) + ".pt")
+        (save_model, save_lr),
+        os.path.join(save_path, "individual_" + str(generation_idx) + ".pt"),
     )
 
 

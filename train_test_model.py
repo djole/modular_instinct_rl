@@ -80,7 +80,9 @@ def episode_rollout(model, env, vis=False):
     )
 
 
-def train_maml_like(init_model, args, num_episodes=20, num_updates=1, vis=False):
+def train_maml_like(
+    init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
+):
     env = navigation_2d.Navigation2DEnv()
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
@@ -90,10 +92,10 @@ def train_maml_like(init_model, args, num_episodes=20, num_updates=1, vis=False)
     optimizer = None
     if isinstance(model, ControllerCombinator):
         optimizer = torch.optim.Adam(
-            model.get_combinator_params(args.unfreeze_modules), lr=args.lr
+            model.get_combinator_params(args.unfreeze_modules), lr=learning_rate
         )
     else:
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     rewards = []
     action_log_probs = []
@@ -116,8 +118,8 @@ def train_maml_like(init_model, args, num_episodes=20, num_updates=1, vis=False)
             action_log_probs.extend(action_log_probs_)
 
         # Reduce the learning rate of the optimizer by half in the first iteration
-        if u_idx == 0 and vis:
-            new_learning_rate = args.lr / 2.0
+        if u_idx > 0:
+            new_learning_rate = learning_rate / 2.0
             for param_group in optimizer.param_groups:
                 param_group["lr"] = new_learning_rate
 
