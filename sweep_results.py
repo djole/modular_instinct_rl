@@ -5,8 +5,9 @@ import torch
 from model import ControllerCombinator
 import pickle
 from statistics import mean
+from multiprocessing import Pool
 
-EVOLUTION_DIR = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor_AVG_FITNESS"
+EVOLUTION_DIR = "./trained_models/evolution"
 NUM_EXP = 20
 
 
@@ -26,7 +27,8 @@ def main():
     ind_file_names = map(lambda x: "individual_" + x + ".pt", generation_ids)
     model_paths = [path.join(stem, fn) for (stem, fn) in zip(gen_paths, ind_file_names)]
 
-    avg_fitnesses = list(map(get_model_eval, model_paths))
+    with Pool(20) as pool:
+        avg_fitnesses = list(pool.map(get_model_eval, model_paths))
     avg_fitnesses = list(zip(*avg_fitnesses))
 
     max_performance = float("-inf"), None, None  # average fitness, fitness_list, id

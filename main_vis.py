@@ -72,14 +72,12 @@ def run(model, unfreeze):
     # model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_985.pt"
     # m = Controller(2, 100, 2)
     # m = ControllerCombinator(2, 2, 100, 2)
-    env = navigation_2d.Navigation2DEnv()
-    # env.seed(args.seed)
 
     import numpy as np
 
     # c_reward, reached, _, vis = episode_rollout(module, env, vis=True)
     c_reward, reached, vis = train_maml_like(
-        model, env, args, num_episodes=NUM_EPISODES, num_updates=NUM_UPDATES, vis=True
+        model, args, num_episodes=NUM_EPISODES, num_updates=NUM_UPDATES, vis=True
     )
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
