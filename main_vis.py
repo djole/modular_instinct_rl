@@ -62,7 +62,7 @@ def vis_path(path_rec, action_vec, model_info, goal):
     plt.show()
 
 
-def run(model, unfreeze):
+def run(model, learning_rate, unfreeze):
     """Run"""
     args = get_args()
     args.unfreeze_modules = unfreeze
@@ -79,7 +79,12 @@ def run(model, unfreeze):
 
     # c_reward, reached, _, vis = episode_rollout(module, env, vis=True)
     c_reward, reached, vis = train_maml_like(
-        model, args, num_episodes=NUM_EPISODES, num_updates=NUM_UPDATES, vis=True
+        model,
+        args,
+        learning_rate,
+        num_episodes=NUM_EPISODES,
+        num_updates=NUM_UPDATES,
+        vis=True,
     )
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
