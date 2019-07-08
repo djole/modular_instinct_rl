@@ -1,5 +1,7 @@
 """Visualise a trained model"""
 import pickle
+from functools import partial
+from multiprocessing import Pool
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -11,8 +13,8 @@ from train_test_model import episode_rollout, train_maml_like
 
 
 NUM_EPISODES = 40
-NUM_UPDATES = 1
-NUM_EXP = 20
+NUM_UPDATES = 4
+NUM_EXP = 100
 
 
 def vis_path(path_rec, action_vec, model_info, goal):
@@ -85,62 +87,96 @@ def run(model, unfreeze):
     return c_reward
 
 
+def run_for_pool(_, m):
+    return run(m, False)
+
+
+def calc_fitness(model_filename_base, savefile, tuple_pckl=False):
+    num_exp = NUM_EXP
+    m_base_orig = torch.load(model_filename_base)
+    if tuple_pckl:
+        m_base_orig = m_base_orig[0]
+    m_base = ControllerCombinator(2, 4, 100, 2, 2, sees_inputs=False)
+    m_base.load_state_dict(m_base_orig.state_dict())
+
+    rfp = partial(run_for_pool, m=m_base)
+    with Pool(20) as pool:
+        experiment_base_fits = list(pool.map(rfp, range(num_exp)))
+
+    experiment_base_fits = list(zip(*experiment_base_fits))
+    with open(savefile, "wb") as pckl_file1:
+        pickle.dump(experiment_base_fits, pckl_file1)
+
+    return experiment_base_fits
+
+
 def main():
     """Main"""
     import matplotlib.pyplot as plt
 
     num_exp = NUM_EXP
 
-    model_filename = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_880.pt"
-    model_filename2 = "./trained_models/pulled_from_server/20random_goals_monolith_network/individual_328.pt"
-    model_filename3 = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor_input2multiplexor/individual_208.pt"
+    model_filename_base = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_880.pt"
+    model_filename_ring003 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_003.pt"
+    model_filename_ring001 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_001.pt"
+    model_filename_ring009 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_009.pt"
+    model_filename_ring_elr = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_evLR.pt"
 
-    m1_orig = torch.load(model_filename)
-    m1 = ControllerCombinator(2, 4, 100, 2, 2, sees_inputs=False)
-    m1.load_state_dict(m1_orig.state_dict())
-    experiment1_fits = [run(m1, False) for _ in range(num_exp)]
-    experiment1_fits = list(zip(*experiment1_fits))
-    with open("experiment1.list", "wb") as pckl_file1:
-        pickle.dump(experiment1_fits, pckl_file1)
+    experiment_base_fits = calc_fitness(
+        model_filename_base, "experiment_fits_BASE.pckl"
+    )
 
-    m2_orig = torch.load(model_filename2)
-    m2 = ControllerMonolithic(2, 100, 2)
-    m2.load_state_dict(m2_orig.state_dict())
-    experiment2_fits = [run(m2, True) for _ in range(num_exp)]
-    experiment2_fits = list(zip(*experiment2_fits))
-    with open("experiment2.list", "wb") as pckl_file2:
-        pickle.dump(experiment2_fits, pckl_file2)
+    experiment_ring003_fits = calc_fitness(
+        model_filename_ring003, "experiment_fits_ring003.pckl"
+    )
 
-    m3 = torch.load(model_filename3)
-    # m3 = ControllerCombinator(2, 4, 100, )
-    # m3.load_state_dict(m3_orig.state_dict())
-    experiment3_fits = [run(m3, False) for _ in range(num_exp)]
-    experiment3_fits = list(zip(*experiment3_fits))
-    with open("experiment3.list", "wb") as pckl_file3:
-        pickle.dump(experiment3_fits, pckl_file3)
+    experiment_ring001_fits = calc_fitness(
+        model_filename_ring001, "experiment_fits_ring001.pckl"
+    )
 
-    assert len(experiment1_fits) == len(experiment2_fits)
-    fig1, axs = plt.subplots(ncols=len(experiment1_fits))
+    experiment_ring009_fits = calc_fitness(
+        model_filename_ring009, "experiment_fits_ring009.pckl"
+    )
+
+    experiment_ring_elr_fits = calc_fitness(
+        model_filename_ring_elr, "experiment_fits_ringELR.pckl", True
+    )
+
+    assert len(experiment_base_fits) == len(experiment_ring001_fits)
+    fig1, axs = plt.subplots(ncols=len(experiment_base_fits), figsize=(30, 15))
 
     try:
-        labels = ["4 mods", "monolith", "4 mods\ninput2combinator"]
+        labels = ["base train", "ring003", "ring001", "ring009", "ring003\nELR"]
         for i, ax in enumerate(axs):
             ax.set_title("Eval. fitness {} updates".format(i))
+            ax.set_ylim(-100, 0)
             ax.boxplot(
-                [experiment1_fits[i], experiment2_fits[i], experiment3_fits[i]],
+                [
+                    experiment_base_fits[i],
+                    experiment_ring003_fits[i],
+                    experiment_ring001_fits[i],
+                    experiment_ring009_fits[i],
+                    experiment_ring_elr_fits[i],
+                ],
                 labels=labels,
                 showmeans=True,
             )
     except TypeError:
         axs.set_title("Eval. fitness {} updates".format(0))
         axs.boxplot(
-            [experiment1_fits[0], experiment2_fits[0], experiment3_fits[0]],
+            [
+                experiment_base_fits[0],
+                experiment_ring003_fits[0],
+                experiment_ring001_fits[0],
+                experiment_ring009_fits[0],
+                experiment_ring_elr_fits[0],
+            ],
             labels=labels,
             showmeans=True,
         )
 
     plt.savefig("./fig.jpg")
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
