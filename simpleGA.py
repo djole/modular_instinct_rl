@@ -64,7 +64,7 @@ class EA:
         self.reached = []
         self.args = args
 
-        self.sigma = 0.03
+        self.sigma = 0.01
         self.sigma_decay = 0.999
         self.min_sigma = 0.001
 
@@ -209,7 +209,7 @@ def save_population(args, population, best_ind, generation_idx):
     )
 
 
-def rollout(args, din, dout, device, pop_size=120, elite_prop=0.1, debug=False):
+def rollout(args, din, dout, device, pop_size=140, elite_prop=0.1, debug=False):
     assert (
         elite_prop < 1.0 and elite_prop > 0.0
     ), "Elite needs to be a measure of proportion of population, 0 < elite_prop < 1"
