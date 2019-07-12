@@ -53,13 +53,31 @@ class Navigation2DEnv(gym.Env):
         goal = np.array([[radius * cos(alpha), radius * sin(alpha)]])
         return goal
 
+    def _sample_square_wth_nogo_zone(self):
+        rand_x = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
+        if (0.2 <= rand_x <= 0.3) or (-0.3 <= rand_x <= -0.2):
+            # If random x could be in the no-go zone
+            # Sample randomly from four slices
+            dart = self.np_random.uniform(0.0, 1.0, size=(1, 1))[0][0]
+            if dart <= 0.25:
+                rand_y = self.np_random.uniform(-0.5, -0.3, size=(1, 1))[0][0]
+            elif 0.25 < dart <= 0.75:
+                rand_y = self.np_random.uniform(-0.2, 0.2, size=(1, 1))[0][0]
+            else:
+                rand_y = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
+        else:
+            rand_y = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
+
+        goal = np.array([[rand_x, rand_y]])
+        return goal
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def sample_tasks(self):
-        #goals = self._sample_ring_task()
-        goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
+        goals = self._sample_square_wth_nogo_zone()
+        # goals = self.np_random.uniform(0.3, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
         return tasks
@@ -68,13 +86,23 @@ class Navigation2DEnv(gym.Env):
         self._task = task
         self._goal = task["goal"]
 
-    def reset(self, env=True):
+    def reset(self):
         self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
         self.horizon = HORIZON
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()
         return self._state
+
+    def is_nogo(self, x, y):
+        """Check if agent is in the nogo zone"""
+        fst_square = (0.2 < x < 0.3) and (0.2 < y < 0.3)
+        snd_square = (-0.3 < x < -0.2) and (0.2 < y < 0.3)
+        trd_square = (0.2 < x < 0.3) and (-0.3 < y < -0.2)
+        frt_square = (-0.3 < x < -0.2) and (-0.3 < y < -0.2)
+        if fst_square or snd_square or trd_square or frt_square:
+            return True
+        return False
 
     def step(self, action):
         action = np.clip(action, -0.1, 0.1)
@@ -84,6 +112,11 @@ class Navigation2DEnv(gym.Env):
         x = self._state[0] - self._goal[0]
         y = self._state[1] - self._goal[1]
         reward = -np.sqrt(x ** 2 + y ** 2)
+
+        # Check if the x and y are in the no-go zone
+        # If yes, punish the agent.
+        if self.is_nogo(x, y):
+            reward -= 100
 
         reached = (np.abs(x) < 0.01) and (np.abs(y) < 0.01)
         done = reached or self.horizon <= 0
