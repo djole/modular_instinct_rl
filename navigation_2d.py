@@ -76,8 +76,8 @@ class Navigation2DEnv(gym.Env):
         return [seed]
 
     def sample_tasks(self):
-        goals = self._sample_square_wth_nogo_zone()
-        # goals = self.np_random.uniform(0.3, 0.5, size=(1, 2))
+        # goals = self._sample_square_wth_nogo_zone()
+        goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
         return tasks
@@ -115,8 +115,8 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if self.is_nogo(x, y):
-            reward -= 100
+        # if self.is_nogo(x, y):
+        #    reward -= 100
 
         reached = (np.abs(x) < 0.01) and (np.abs(y) < 0.01)
         done = reached or self.horizon <= 0

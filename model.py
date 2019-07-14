@@ -52,13 +52,11 @@ class Controller(torch.nn.Module):
         self.din = D_in
         self.dout = D_out
         self.controller = nn.Sequential(
-            nn.Linear(D_in, H),
-            nn.ReLU(),
-            nn.Linear(H, H),
-            nn.ReLU(),
-            nn.Linear(H, D_out),
-            nn.Tanh(),
+            nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, H), nn.ReLU()
         )
+        self.last_layer = nn.Linear(H, D_out)
+        self.strength_signal = nn.Linear(H, 1)
+
         self.sigma = nn.Parameter(torch.Tensor(D_out))
         self.sigma.data.fill_(math.log(init_std))
 
@@ -67,11 +65,13 @@ class Controller(torch.nn.Module):
         self.rewards = []
 
     def forward(self, x):
-        means = self.controller(x) * 0.1
-        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
-        dist = torch.distributions.Normal(means, scales)
-        action = dist.mean
-        return action, 0  # , dist.log_prob(action)
+        ll = self.controller(x)
+        means = self.last_layer(ll)
+        str_sig = self.strength_signal(ll)
+        # scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
+        # dist = torch.distributions.Normal(means, scales)
+        # action = dist.mean
+        return means, str_sig  # , dist.log_prob(action)
 
 
 class ControllerCombinator(torch.nn.Module):
@@ -91,13 +91,16 @@ class ControllerCombinator(torch.nn.Module):
     ):
         super(ControllerCombinator, self).__init__()
 
-        # Initialize the
+        # Initialize the modules
         self.elements = torch.nn.ModuleList()
         for i in range(N):
             c = Controller(D_in, H, M_out)
             self.elements.append(c)
 
-        # Networks that will combine the outputs of the different elemenrts
+        # Initilaize the overwrite module
+        self.overwrite = Controller(D_in, H, D_out)
+
+        # Networks that will combine the outputs of the different elements
         d_input = N * M_out
         if sees_inputs:
             d_input += D_in
@@ -120,11 +123,18 @@ class ControllerCombinator(torch.nn.Module):
 
     def forward(self, x):
         votes = []
-        votes_log_probs = []
+        votes_strengths = []
         for fnc in self.elements:
             vote, vlp = fnc(x)
             votes.append(vote)
-            votes_log_probs.append(vlp)
+            votes_strengths.append(vlp)
+
+        for idx_v, vote in enumerate(votes):
+            amp = 1
+            for idx_s, vote_str in enumerate(votes_strengths):
+                if idx_s != idx_v:
+                    amp *= torch.abs(vote_str)
+            vote = vote * amp
 
         votes_ = torch.stack(votes)
         votes_t = torch.flatten(votes_)  # torch.transpose(votes_, 0, 1)
@@ -143,7 +153,7 @@ class ControllerCombinator(torch.nn.Module):
 
         votes = torch.cat(votes)
         debug_info = (means.detach().numpy(), votes.detach().numpy())
-        return out, dist.log_prob(out) + sum(votes_log_probs), debug_info
+        return out, dist.log_prob(out), debug_info
 
     def expose_modules(self):
         for module in self.elements:
