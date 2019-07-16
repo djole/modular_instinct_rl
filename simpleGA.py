@@ -182,7 +182,7 @@ class EA:
     def fitness_calculation(self, individual, args, num_attempts=20):
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
-            train_maml_like(individual.model, args, individual.learning_rate)
+            train_maml_like(individual.model, args, args.lr)
             for _ in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
