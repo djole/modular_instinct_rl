@@ -57,6 +57,7 @@ class Controller(torch.nn.Module):
             nn.Linear(H, H),
             nn.ReLU(),
             nn.Linear(H, D_out),
+            nn.Tanh(),
         )
         self.sigma = nn.Parameter(torch.Tensor(D_out))
         self.sigma.data.fill_(math.log(init_std))
@@ -66,7 +67,7 @@ class Controller(torch.nn.Module):
         self.rewards = []
 
     def forward(self, x):
-        means = self.controller(x)
+        means = self.controller(x) * 0.1
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
         action = dist.mean
@@ -105,6 +106,7 @@ class ControllerCombinator(torch.nn.Module):
             nn.Linear(d_input, d_hidden_layer),
             nn.ReLU(),
             nn.Linear(d_hidden_layer, D_out),
+            nn.Tanh(),
         )
 
         self.sigma = nn.Parameter(torch.Tensor(D_out))
@@ -129,7 +131,7 @@ class ControllerCombinator(torch.nn.Module):
         if self.sees_inputs:
             votes_t = torch.cat((votes_t, x))
 
-        means = self.combinator(votes_t)
+        means = self.combinator(votes_t) * 0.1
         # for vm, com in zip(votes_t, self.combinators):
         #    means.append(com(vm))
 
