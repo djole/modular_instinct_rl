@@ -44,6 +44,26 @@ class ControllerMonolithic(torch.nn.Module):
         return action, log_prob, None
 
 
+class ControllerInstinct(torch.nn.Module):
+    """Single element of the modular network"""
+
+    def __init__(self, D_in, H, D_out):
+        super(ControllerInstinct, self).__init__()
+        self.din = D_in
+        self.dout = D_out
+        self.controller = nn.Sequential(
+            nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, H), nn.ReLU()
+        )
+        self.last_layer = nn.Sequential(nn.Linear(H, D_out), nn.Tanh())
+        self.strength_signal = nn.Sequential(nn.Linear(H, D_out), nn.Sigmoid())
+
+    def forward(self, x):
+        inter = self.controller(x)
+        means = self.last_layer(inter)
+        str_sig = self.strength_signal(inter)
+        return means, str_sig
+
+
 class Controller(torch.nn.Module):
     """Single element of the modular network"""
 
@@ -52,11 +72,13 @@ class Controller(torch.nn.Module):
         self.din = D_in
         self.dout = D_out
         self.controller = nn.Sequential(
-            nn.Linear(D_in, H), nn.ReLU(), nn.Linear(H, H), nn.ReLU()
+            nn.Linear(D_in, H),
+            nn.ReLU(),
+            nn.Linear(H, H),
+            nn.ReLU(),
+            nn.Linear(H, D_out),
+            nn.Tanh(),
         )
-        self.last_layer = nn.Linear(H, D_out)
-        self.strength_signal = nn.Linear(H, 1)
-
         self.sigma = nn.Parameter(torch.Tensor(D_out))
         self.sigma.data.fill_(math.log(init_std))
 
@@ -65,51 +87,27 @@ class Controller(torch.nn.Module):
         self.rewards = []
 
     def forward(self, x):
-        ll = self.controller(x)
-        means = self.last_layer(ll)
-        str_sig = self.strength_signal(ll)
-        # scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
-        # dist = torch.distributions.Normal(means, scales)
-        # action = dist.mean
-        return means, str_sig  # , dist.log_prob(action)
+        means = self.controller(x) * 0.1
+        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
+        dist = torch.distributions.Normal(means, scales)
+        action = dist.sample()
+        return action, dist.log_prob(action)
 
 
 class ControllerCombinator(torch.nn.Module):
     """ The combinator that is modified during lifetime"""
 
-    def __init__(
-        self,
-        D_in,
-        N,
-        H,
-        D_out,
-        M_out,
-        min_std=1e-6,
-        init_std=1.0,
-        det=False,
-        sees_inputs=False,
-    ):
+    def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=0.1):
         super(ControllerCombinator, self).__init__()
 
         # Initialize the modules
-        self.elements = torch.nn.ModuleList()
-        for i in range(N):
-            c = Controller(D_in, H, M_out)
-            self.elements.append(c)
+        self.controller = Controller(D_in + 1, H, D_out, init_std=init_std)
+        self.instinct = ControllerInstinct(D_in + 1, H, D_out)
 
-        # Initilaize the overwrite module
-        self.overwrite = Controller(D_in, H, D_out)
-
-        # Networks that will combine the outputs of the different elements
-        d_input = N * M_out
-        if sees_inputs:
-            d_input += D_in
-        d_hidden_layer = d_input * 2
+        # Initialize the combinator dimensions and the combinator
+        combinator_input_size = 2 * D_out
         self.combinator = nn.Sequential(
-            nn.Linear(d_input, d_hidden_layer),
-            nn.ReLU(),
-            nn.Linear(d_hidden_layer, D_out),
-            nn.Tanh(),
+            nn.Linear(combinator_input_size, D_out), nn.Tanh()
         )
 
         self.sigma = nn.Parameter(torch.Tensor(D_out))
@@ -118,78 +116,32 @@ class ControllerCombinator(torch.nn.Module):
 
         self.sigma.data.fill_(math.log(init_std))
         self.min_log_std = math.log(min_std)
-        self.deterministic = det
-        self.sees_inputs = sees_inputs
 
     def forward(self, x):
-        votes = []
-        votes_strengths = []
-        for fnc in self.elements:
-            vote, vlp = fnc(x)
-            votes.append(vote)
-            votes_strengths.append(vlp)
 
-        for idx_v, vote in enumerate(votes):
-            amp = 1
-            for idx_s, vote_str in enumerate(votes_strengths):
-                if idx_s != idx_v:
-                    amp *= torch.abs(vote_str)
-            vote = vote * amp
+        # Pass the input to the submodules
+        stoch_action, log_prob = self.controller(x)
+        alt_action, control = self.instinct(x)
 
-        votes_ = torch.stack(votes)
-        votes_t = torch.flatten(votes_)  # torch.transpose(votes_, 0, 1)
-        if self.sees_inputs:
-            votes_t = torch.cat((votes_t, x))
+        controlled_stoch_action = stoch_action * control
 
-        means = self.combinator(votes_t) * 0.1
-        # for vm, com in zip(votes_t, self.combinators):
-        #    means.append(com(vm))
+        # Push two actions through a linear combination
+        comb_x = torch.cat((controlled_stoch_action, alt_action))
+        final_action = self.combinator(comb_x)
 
-        # means = torch.stack(means)
-        # means = torch.flatten(means)
-        scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
-        dist = torch.distributions.Normal(means, scales)
-        out = dist.mean if self.deterministic else dist.sample()
+        return final_action, log_prob + torch.log(control), None
 
-        votes = torch.cat(votes)
-        debug_info = (means.detach().numpy(), votes.detach().numpy())
-        return out, dist.log_prob(out), debug_info
-
-    def expose_modules(self):
-        for module in self.elements:
-            module.requires_grad = True
-        self.combinator.requires_grad = True
-
-    def cover_modules(self):
-        for module in self.elements:
-            module.requires_grad = False
-        self.combinator.requires_grad = True
-
-    def get_combinator_params(self, unfreeze_modules=False):
-        if unfreeze_modules:
-            return self.parameters()
-        else:
-            comb_params = []
-            dct = self.named_parameters()
-            for pkey, ptensor in dct:
-                if "combinator" in pkey or pkey == "sigma":
-                    comb_params.append(ptensor)
-            return comb_params
+    def get_combinator_params(self):
+        # comb_params = []
+        # dct = self.named_parameters()
+        # for pkey, ptensor in dct:
+        #    if "combinator" in pkey or pkey == "sigma":
+        #        comb_params.append(ptensor)
+        # return comb_params
+        return self.controller.parameters()
 
 
 def init_model(din, dout, args):
     """ Method that gives instantiates the model depending on the program arguments """
-    if args.monolithic_baseline:
-        model = ControllerMonolithic(D_in=din, H=args.hidden_size, D_out=dout)
-    else:
-        model = ControllerCombinator(
-            D_in=din,
-            N=args.num_modules,
-            H=args.hidden_size,
-            D_out=dout,
-            M_out=args.module_outputs,
-            det=args.deterministic,
-            init_std=args.init_sigma,
-            sees_inputs=args.sees_inputs,
-        )
+    model = ControllerCombinator(D_in=din, H=100, D_out=dout, init_std=args.init_sigma)
     return model

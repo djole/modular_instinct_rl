@@ -5,7 +5,7 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
-from math import pi, cos, sin
+from math import pi, cos, sin, pow, sqrt
 
 HORIZON = 100
 
@@ -92,7 +92,16 @@ class Navigation2DEnv(gym.Env):
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()
-        return self._state
+        dist_2_nogo = self._dist_2_nogo(self._state[0], self._state[1])
+        return (self._state, dist_2_nogo)
+
+    def _dist_2_nogo(self, x, y):
+        dist_fst = sqrt(pow(x - 0.25, 2) + pow(y - 0.25, 2))
+        dist_snd = sqrt(pow(x + 0.25, 2) + pow(y - 0.25, 2))
+        dist_trd = sqrt(pow(x - 0.25, 2) + pow(y + 0.25, 2))
+        dist_frt = sqrt(pow(x + 0.25, 2) + pow(y + 0.25, 2))
+        min_dist = min([dist_fst, dist_snd, dist_trd, dist_frt])
+        return min_dist
 
     def is_nogo(self, x, y):
         """Check if agent is in the nogo zone"""
@@ -109,16 +118,18 @@ class Navigation2DEnv(gym.Env):
         assert self.action_space.contains(action)
         self._state = self._state + action
 
-        x = self._state[0] - self._goal[0]
-        y = self._state[1] - self._goal[1]
-        reward = -np.sqrt(x ** 2 + y ** 2)
+        delta_x = self._state[0] - self._goal[0]
+        delta_y = self._state[1] - self._goal[1]
+        reward = -np.sqrt(delta_x ** 2 + delta_y ** 2)
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if self.is_nogo(x, y):
+        if self.is_nogo(self._state[0], self._state[1]):
             reward -= 100
 
-        reached = (np.abs(x) < 0.01) and (np.abs(y) < 0.01)
+        dist_2_nogo = self._dist_2_nogo(self._state[0], self._state[1])
+
+        reached = (np.abs(delta_x) < 0.01) and (np.abs(delta_y) < 0.01)
         done = reached or self.horizon <= 0
         self.horizon -= 1
         self.cummulative_reward += reward
@@ -126,7 +137,14 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
-        return self._state, reward, done, reached, self.cummulative_reward, self._task
+        return (
+            (self._state, dist_2_nogo),
+            reward,
+            done,
+            reached,
+            self.cummulative_reward,
+            self._task,
+        )
 
     def render_episode(self):
         plt.figure()

@@ -11,8 +11,11 @@ EPS = np.finfo(np.float32).eps.item()
 
 
 def select_model_action(model, state):
-    state = torch.from_numpy(state).float()
-    action, action_log_prob, debug_info = model(state)
+    position, dist_2_nogo = state
+    position = torch.from_numpy(position).float()
+    dist_2_nogo = torch.tensor([dist_2_nogo])
+    model_input = torch.cat([position, dist_2_nogo])
+    action, action_log_prob, debug_info = model(model_input)
     # return action.item()
     return action.detach().numpy(), action_log_prob, debug_info
 
@@ -91,9 +94,7 @@ def train_maml_like(
 
     optimizer = None
     if isinstance(model, ControllerCombinator):
-        optimizer = torch.optim.Adam(
-            model.get_combinator_params(args.unfreeze_modules), lr=learning_rate
-        )
+        optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
