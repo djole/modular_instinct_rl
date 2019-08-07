@@ -105,10 +105,13 @@ class ControllerCombinator(torch.nn.Module):
         self.instinct = ControllerInstinct(D_in + 1, H, D_out)
 
         # Initialize the combinator dimensions and the combinator
-        combinator_input_size = 2 * D_out
-        self.combinator = nn.Sequential(
-            nn.Linear(combinator_input_size, D_out), nn.Tanh()
-        )
+        combinator_input_size = 2
+
+        self.combinators = nn.ModuleList()
+        for _ in range(D_out):
+            self.combinators.append(nn.Linear(combinator_input_size, 1))
+
+        # self.combinator = nn.Sequential(nn.Linear(combinator_input_size, D_out))
 
         self.sigma = nn.Parameter(torch.Tensor(D_out))
 
@@ -122,12 +125,23 @@ class ControllerCombinator(torch.nn.Module):
         # Pass the input to the submodules
         stoch_action, log_prob = self.controller(x)
         alt_action, control = self.instinct(x)
+        alt_action = torch.tensor([0.0, 0.0])
+        control = torch.tensor([1.0, 1.0])
 
         controlled_stoch_action = stoch_action * control
 
-        # Push two actions through a linear combination
-        comb_x = torch.cat((controlled_stoch_action, alt_action))
-        final_action = self.combinator(comb_x)
+        # Separate the output dimensions
+        output_dims = [
+            torch.tensor(ins) for ins in zip(controlled_stoch_action, alt_action)
+        ]
+        # comb_x = torch.cat((controlled_stoch_action, alt_action))
+
+        # Combine actions into the final action
+        output_list = [
+            combinator(comb_x)
+            for combinator, comb_x in zip(self.combinators, output_dims)
+        ]
+        final_action = torch.cat(output_list)
 
         return final_action, log_prob + torch.log(control), None
 
