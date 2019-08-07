@@ -63,6 +63,8 @@ class EA:
         self.population = []  # a list of lists/generators of model parameters
         self.selected = []  # a buffer for the selected individuals
         self.to_select = int(self.pop_size * elite_prop)
+        if self.to_select == 0:
+            self.to_select = 1
         self.fitnesses = []
         self.reached = []
         self.args = args
@@ -180,6 +182,7 @@ class EA:
         return (self.population[max_idx], max_fitness)
 
     def fitness_calculation(self, individual, args, num_attempts=20):
+        torch.set_num_threads(1)
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
             train_maml_like(individual.model, args, args.lr)
