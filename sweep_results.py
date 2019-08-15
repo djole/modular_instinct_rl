@@ -12,6 +12,7 @@ NUM_EXP = 20
 
 
 def get_model_eval(model_filename):
+    torch.set_num_threads(1)
     m1_orig, learning_rate = torch.load(model_filename)
     m1 = ControllerCombinator(2, 100, 2)
     m1.load_state_dict(m1_orig.state_dict())
