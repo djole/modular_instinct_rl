@@ -103,26 +103,28 @@ def train_maml_like(
 
     fitness_list = []
     ### evaluate for the zero updates
+    vis_info_collection = []
     if vis:
         model.deterministic = True
         fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
+        vis_info_collection.append(vis_info)
         fitness_list.append(fitness)
 
     for u_idx in range(num_updates):
         ### Train
         model.deterministic = False
-        cummulative_step_fitness = 0
         for _ in range(num_episodes):
-            step_fitness, reached, (rewards_, action_log_probs_), _ = episode_rollout(
-                model, env, False
+            _, reached, (rewards_, action_log_probs_), vis_info = episode_rollout(
+                model, env, True
             )
+            vis_info_collection.append(vis_info)
+
             rewards.extend(rewards_)
             action_log_probs.extend(action_log_probs_)
-            cummulative_step_fitness += step_fitness
 
         # Reduce the learning rate of the optimizer by half in the first iteration
-        if u_idx > 0:
-            new_learning_rate = learning_rate / 2.0
+        if u_idx == 0 and vis:
+            new_learning_rate = args.lr / 2.0
             for param_group in optimizer.param_groups:
                 param_group["lr"] = new_learning_rate
 
@@ -134,7 +136,9 @@ def train_maml_like(
         ### evaluate
         model.deterministic = True
         fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
+        vis_info_collection.append(vis_info)
         fitness_list.append(fitness)
 
-    ret_fit = fitness_list if vis else fitness_list[-1] + cummulative_step_fitness
-    return ret_fit, reached, vis_info
+        ret_fit = fitness_list if vis else fitness_list[-1]
+        return ret_fit, reached, vis_info_collection
+
