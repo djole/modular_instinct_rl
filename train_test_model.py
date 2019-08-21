@@ -138,3 +138,63 @@ def train_maml_like(
 
     ret_fit = fitness_list if vis else fitness_list[-1] + cummulative_step_fitness
     return ret_fit, reached, vis_info
+
+
+def train_maml_like_for_trajectory(
+    init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
+):
+    env = navigation_2d.Navigation2DEnv()
+    new_task = env.sample_tasks()
+    env.reset_task(new_task[0])
+
+    model = copy.deepcopy(init_model)
+
+    optimizer = None
+    if isinstance(model, ControllerCombinator):
+        optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    rewards = []
+    action_log_probs = []
+
+    fitness_list = []
+    ### evaluate for the zero updates
+    vis_info_collection = []
+    if vis:
+        model.deterministic = True
+        fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
+        vis_info_collection.append(vis_info)
+        fitness_list.append(fitness)
+
+    for u_idx in range(num_updates):
+        ### Train
+        model.deterministic = False
+        for _ in range(num_episodes):
+            _, reached, (rewards_, action_log_probs_), vis_info = episode_rollout(
+                model, env, True
+            )
+            vis_info_collection.append(vis_info)
+
+            rewards.extend(rewards_)
+            action_log_probs.extend(action_log_probs_)
+
+        # Reduce the learning rate of the optimizer by half in the first iteration
+        if u_idx == 0 and vis:
+            new_learning_rate = args.lr / 2.0
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = new_learning_rate
+
+        assert len(rewards) > 1 and len(action_log_probs) > 1
+        update_policy(optimizer, args, rewards, action_log_probs)
+        rewards.clear()
+        action_log_probs.clear()
+
+        ### evaluate
+        model.deterministic = True
+        fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
+        vis_info_collection.append(vis_info)
+        fitness_list.append(fitness)
+
+    ret_fit = fitness_list if vis else fitness_list[-1]
+    return ret_fit, reached, vis_info_collection
