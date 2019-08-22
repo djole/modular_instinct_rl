@@ -19,12 +19,23 @@ MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module
 def vis_path(vis):
     """ Visualize the path """
     plt.figure()
+    axis = plt.gca()
     for v in vis:
         path_rec = v[1]
         goal = v[3]
-        axis = plt.gca()
+
         pth = list(zip(*path_rec))
-        axis.plot(*pth)
+        axis.plot(*pth, color='green')
+        axis.scatter(*goal, color='red')
+
+    axis.add_patch(plt.Rectangle((0.2, 0.2), 0.1, 0.1, fc='r', alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.3, 0.2), 0.1, 0.1, fc='r', alpha=0.1))
+    axis.add_patch(plt.Rectangle((0.2, -0.3), 0.1, 0.1, fc='r', alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.3, -0.3), 0.1, 0.1, fc='r', alpha=0.1))
+
+    axis.set_xlim(-0.5, 0.5)
+    axis.set_ylim(-0.5, 0.5)
+
 
     plt.show()
     print("")
