@@ -128,7 +128,7 @@ class Navigation2DEnv(gym.Env):
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
         if is_nogo(self._state[0], self._state[1]):
-            reward -= 100
+            reward -= 10
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
 
