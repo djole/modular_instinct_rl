@@ -143,7 +143,7 @@ class ControllerCombinator(torch.nn.Module):
         ]
         final_action = torch.cat(output_list)
 
-        return final_action, log_prob + torch.log(control), None
+        return final_action, log_prob + torch.log(control), control
 
     def get_combinator_params(self):
         # comb_params = []
