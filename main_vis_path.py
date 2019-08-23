@@ -7,13 +7,13 @@ import torch
 import navigation_2d
 from arguments import get_args
 from model import ControllerCombinator, ControllerMonolithic
-from train_test_model import episode_rollout, train_maml_like_for_trajectory
-
+from train_test_model import train_maml_like_for_trajectory, select_model_action
+from navigation_2d import dist_2_nogo
 
 NUM_EPISODES = 40
 NUM_UPDATES = 2
 NUM_EXP = 5
-MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/individual_862.pt"
+MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/individual_158_no_nogo.pt"
 
 
 def vis_path(vis):
@@ -25,20 +25,46 @@ def vis_path(vis):
         goal = v[3]
 
         pth = list(zip(*path_rec))
-        axis.plot(*pth, color='green')
-        axis.scatter(*goal, color='red')
+        axis.plot(*pth, color="green")
+        axis.scatter(*goal, color="red")
 
-    axis.add_patch(plt.Rectangle((0.2, 0.2), 0.1, 0.1, fc='r', alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.3, 0.2), 0.1, 0.1, fc='r', alpha=0.1))
-    axis.add_patch(plt.Rectangle((0.2, -0.3), 0.1, 0.1, fc='r', alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.3, -0.3), 0.1, 0.1, fc='r', alpha=0.1))
+    axis.add_patch(plt.Rectangle((0.2, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.3, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((0.2, -0.3), 0.1, 0.1, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.3, -0.3), 0.1, 0.1, fc="r", alpha=0.1))
 
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
 
+    plt.show()
+
+
+def get_mesh():
+    input_x = torch.arange(-1, 1, 0.05)
+    input_y = torch.arange(-1, 1, 0.05)
+
+    input_xy = np.stack(np.meshgrid(input_x, input_y))
+    input_xy = input_xy.reshape(2, -1)
+    # input_xy = torch.tensor(input_xy).t()
+    return input_xy.transpose()
+
+
+def vis_heatmap(model):
+    input_xs = get_mesh()
+    z = [
+        select_model_action(model, (x, dist_2_nogo(*x)))[2][1].item() for x in input_xs
+    ]
+    plt.figure()
+    axis = plt.gca()
+    x, y = input_xs.transpose()[0], input_xs.transpose()[1]
+    x = np.reshape(x, (40, 40))
+    y = np.reshape(y, (40, 40))
+    z = np.reshape(z, (40, 40))
+    axis.pcolormesh(x, y , z, cmap="RdBu")
+    axis.set_xlim(-0.5, 0.5)
+    axis.set_ylim(-0.5, 0.5)
 
     plt.show()
-    print("")
 
 
 def run(model, lr, unfreeze):
@@ -57,11 +83,17 @@ def run(model, lr, unfreeze):
 
     # c_reward, reached, _, vis = episode_rollout(module, env, vis=True)
     c_reward, reached, vis = train_maml_like_for_trajectory(
-        model, args, num_episodes=NUM_EPISODES, learning_rate=lr, num_updates=NUM_UPDATES, vis=True
+        model,
+        args,
+        num_episodes=NUM_EPISODES,
+        learning_rate=lr,
+        num_updates=NUM_UPDATES,
+        vis=True,
     )
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
     vis_path(vis)
+    #vis_heatmap(model)
     return c_reward
 
 
