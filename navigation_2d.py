@@ -12,6 +12,26 @@ HORIZON = 100
 START = [0.0, 0.0]
 
 
+def dist_2_nogo(x, y):
+    dist_fst = sqrt(pow(x - 0.25, 2) + pow(y - 0.25, 2))
+    dist_snd = sqrt(pow(x + 0.25, 2) + pow(y - 0.25, 2))
+    dist_trd = sqrt(pow(x - 0.25, 2) + pow(y + 0.25, 2))
+    dist_frt = sqrt(pow(x + 0.25, 2) + pow(y + 0.25, 2))
+    min_dist = min([dist_fst, dist_snd, dist_trd, dist_frt])
+    return min_dist
+
+
+def is_nogo(x, y):
+    """Check if agent is in the nogo zone"""
+    fst_square = (0.2 < x < 0.3) and (0.2 < y < 0.3)
+    snd_square = (-0.3 < x < -0.2) and (0.2 < y < 0.3)
+    trd_square = (0.2 < x < 0.3) and (-0.3 < y < -0.2)
+    frt_square = (-0.3 < x < -0.2) and (-0.3 < y < -0.2)
+    if fst_square or snd_square or trd_square or frt_square:
+        return True
+    return False
+
+
 class Navigation2DEnv(gym.Env):
     """2D navigation problems, as described in [1]. The code is adapted from 
     https://github.com/cbfinn/maml_rl/blob/9c8e2ebd741cb0c7b8bf2d040c4caeeb8e06cc95/maml_examples/point_env_randgoal.py
@@ -92,26 +112,9 @@ class Navigation2DEnv(gym.Env):
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()
-        dist_2_nogo = self._dist_2_nogo(self._state[0], self._state[1])
-        return (self._state, dist_2_nogo)
 
-    def _dist_2_nogo(self, x, y):
-        dist_fst = sqrt(pow(x - 0.25, 2) + pow(y - 0.25, 2))
-        dist_snd = sqrt(pow(x + 0.25, 2) + pow(y - 0.25, 2))
-        dist_trd = sqrt(pow(x - 0.25, 2) + pow(y + 0.25, 2))
-        dist_frt = sqrt(pow(x + 0.25, 2) + pow(y + 0.25, 2))
-        min_dist = min([dist_fst, dist_snd, dist_trd, dist_frt])
-        return min_dist
-
-    def is_nogo(self, x, y):
-        """Check if agent is in the nogo zone"""
-        fst_square = (0.2 < x < 0.3) and (0.2 < y < 0.3)
-        snd_square = (-0.3 < x < -0.2) and (0.2 < y < 0.3)
-        trd_square = (0.2 < x < 0.3) and (-0.3 < y < -0.2)
-        frt_square = (-0.3 < x < -0.2) and (-0.3 < y < -0.2)
-        if fst_square or snd_square or trd_square or frt_square:
-            return True
-        return False
+        d2ng = dist_2_nogo(self._state[0], self._state[1])
+        return (self._state, d2ng)
 
     def step(self, action):
         action = np.clip(action, -0.1, 0.1)
@@ -124,10 +127,10 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if self.is_nogo(self._state[0], self._state[1]):
+        if is_nogo(self._state[0], self._state[1]):
             reward -= 100
 
-        dist_2_nogo = self._dist_2_nogo(self._state[0], self._state[1])
+        d2ng = dist_2_nogo(self._state[0], self._state[1])
 
         reached = (np.abs(delta_x) < 0.01) and (np.abs(delta_y) < 0.01)
         done = reached or self.horizon <= 0
@@ -138,7 +141,7 @@ class Navigation2DEnv(gym.Env):
         self.episode_y_path.append(self._state[1])
 
         return (
-            (self._state, dist_2_nogo),
+            (self._state, d2ng),
             reward,
             done,
             reached,
