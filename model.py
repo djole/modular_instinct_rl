@@ -125,8 +125,6 @@ class ControllerCombinator(torch.nn.Module):
         # Pass the input to the submodules
         stoch_action, log_prob = self.controller(x)
         alt_action, control = self.instinct(x)
-        alt_action = torch.tensor([0.0, 0.0])
-        control = torch.tensor([1.0, 1.0])
 
         controlled_stoch_action = stoch_action * control
 
