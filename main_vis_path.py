@@ -13,7 +13,7 @@ from navigation_2d import dist_2_nogo
 NUM_EPISODES = 40
 NUM_UPDATES = 2
 NUM_EXP = 5
-MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/individual_158_no_nogo.pt"
+MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/larger_pop_smaller_punishment/individual_235.pt"
 
 
 def vis_path(vis):
@@ -60,7 +60,7 @@ def vis_heatmap(model):
     x = np.reshape(x, (40, 40))
     y = np.reshape(y, (40, 40))
     z = np.reshape(z, (40, 40))
-    axis.pcolormesh(x, y , z, cmap="RdBu")
+    axis.pcolormesh(x, y, z, cmap="RdBu")
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
 
@@ -93,7 +93,7 @@ def run(model, lr, unfreeze):
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
     vis_path(vis)
-    #vis_heatmap(model)
+    # vis_heatmap(model)
     return c_reward
 
 
