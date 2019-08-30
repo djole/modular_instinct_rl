@@ -11,7 +11,7 @@ from train_test_model import train_maml_like_for_trajectory, select_model_action
 from navigation_2d import dist_2_nogo
 
 NUM_EPISODES = 40
-NUM_UPDATES = 2
+NUM_UPDATES = 1
 NUM_EXP = 5
 MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/larger_pop_smaller_punishment/individual_175.pt"
 
@@ -93,8 +93,8 @@ def run(model, lr, unfreeze):
     )
     print("The cummulative reward for the {} task is {}.".format(task_idx, c_reward))
     print("The goal was reached" if reached else "The goal was NOT reached")
-    # vis_path(vis)
-    vis_heatmap(model)
+    vis_path(vis)
+    # vis_heatmap(model)
     return c_reward
 
 
