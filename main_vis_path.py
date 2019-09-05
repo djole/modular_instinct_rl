@@ -68,9 +68,8 @@ def vis_heatmap(model):
     plt.show()
 
 
-def run(model, lr, unfreeze):
+def run(model, lr, unfreeze, args):
     """Run"""
-    args = get_args()
     args.unfreeze_modules = unfreeze
     task_idx = 1
     # model_filename = "./trained_models/pulled_from_server/model995.pt"
@@ -101,15 +100,16 @@ def run(model, lr, unfreeze):
 def main():
     """Main"""
     import matplotlib.pyplot as plt
+    args = get_args()
 
     num_exp = NUM_EXP
 
     model_filename = MODEL_PATH
 
     m1_orig = torch.load(model_filename)
-    m1 = ControllerCombinator(2, 100, 2)
+    m1 = ControllerCombinator(2, 100, 2, load_instinct=args.load_instinct)
     m1.load_state_dict(m1_orig[0].state_dict())
-    experiment1_fits = [run(m1, False, m1_orig[1]) for _ in range(num_exp)]
+    experiment1_fits = [run(m1, False, m1_orig[1], args) for _ in range(num_exp)]
     experiment1_fits = list(zip(*experiment1_fits))
     with open("experiment1.list", "wb") as pckl_file1:
         pickle.dump(experiment1_fits, pckl_file1)

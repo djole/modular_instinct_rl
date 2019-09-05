@@ -3,6 +3,7 @@ from functools import partial
 from main_vis import run
 import torch
 from model import ControllerCombinator
+from arguments import get_args
 import pickle
 from statistics import mean
 from multiprocessing import Pool
@@ -13,8 +14,9 @@ NUM_EXP = 20
 
 def get_model_eval(model_filename):
     torch.set_num_threads(1)
+    args = get_args()
     m1_orig, learning_rate = torch.load(model_filename)
-    m1 = ControllerCombinator(2, 100, 2)
+    m1 = ControllerCombinator(2, 100, 2, load_instinct=args.load_instinct)
     m1.load_state_dict(m1_orig.state_dict())
     experiment1_fits = [run(m1, learning_rate, False) for _ in range(NUM_EXP)]
     experiment1_fits = list(zip(*experiment1_fits))

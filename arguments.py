@@ -124,6 +124,12 @@ def get_args():
         default=False,
         help="if TRUE, the supported environment will not have no-go zones"
     )
+    parser.add_argument(
+        "--load-instinct",
+        action="store_true",
+        default=False,
+        help="if TRUE, the pretrained instinct will be loaded from a file"
+    )
     args = parser.parse_args()
     args.cuda = False
 

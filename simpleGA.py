@@ -166,7 +166,7 @@ class EA:
             indiv = self.population[i]
             indiv.model.load_state_dict(parent.model.state_dict())
             # apply mutation to model parameters
-            for p in indiv.model.parameters():
+            for p in indiv.model.get_evolvable_params():
                 mutation = torch.randn_like(p.data) * self.sigma
                 p.data += mutation
             # apply mutation to learning rate
