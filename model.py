@@ -162,8 +162,6 @@ class ControllerCombinator(torch.nn.Module):
         for pkey, ptensor in dct:
             if not ("instinct" in pkey and self.freeze_instinct):
                 comb_params.append(ptensor)
-            else:
-                print("remove me, I'm debugging line! {}".format(pkey))
         return comb_params
 
     def parameters(self):
