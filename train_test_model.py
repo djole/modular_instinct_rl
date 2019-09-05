@@ -86,7 +86,7 @@ def episode_rollout(model, env, vis=False):
 def train_maml_like(
     init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
 ):
-    env = navigation_2d.Navigation2DEnv()
+    env = navigation_2d.Navigation2DEnv(rm_nogo=args.rm_nogo)
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 
@@ -139,7 +139,7 @@ def train_maml_like(
         fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
         fitness_list.append(fitness)
 
-    avg_exploitation_fitness = sum(fitness_list) / num_updates
+    avg_exploitation_fitness = sum(fitness_list) / num_updates if not args.rm_nogo else 0.0
     ret_fit = (
         fitness_list if vis else avg_exploitation_fitness + avg_exploration_fitness
     )
@@ -149,7 +149,7 @@ def train_maml_like(
 def train_maml_like_for_trajectory(
     init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
 ):
-    env = navigation_2d.Navigation2DEnv()
+    env = navigation_2d.Navigation2DEnv(args.rm_nogo)
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 

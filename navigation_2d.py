@@ -47,7 +47,7 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}):
+    def __init__(self, task={}, rm_nogo=False):
         super(Navigation2DEnv, self).__init__()
 
         self.observation_space = spaces.Box(
@@ -63,6 +63,9 @@ class Navigation2DEnv(gym.Env):
         self.cummulative_reward = 0
         self.episode_x_path = []
         self.episode_y_path = []
+
+        # An option to remove no-go zones for baseline purposes
+        self.rm_nogo = rm_nogo
 
         self.task_sequence = [[0.7, 0.35], [-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35]]
 
@@ -127,7 +130,7 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if is_nogo(self._state[0], self._state[1]):
+        if not self.rm_nogo and is_nogo(self._state[0], self._state[1]):
             reward -= 10
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
