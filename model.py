@@ -85,13 +85,15 @@ class Controller(torch.nn.Module):
         self.min_log_std = math.log(min_std)
         self.saved_log_probs = []
         self.rewards = []
+        self.deterministic = False
 
     def forward(self, x):
         means = self.controller(x) * 0.1
         scales = torch.exp(torch.clamp(self.sigma, min=self.min_log_std))
         dist = torch.distributions.Normal(means, scales)
-        action = dist.sample()
-        return action, dist.log_prob(action)
+        action = dist.mean if self.deterministic else dist.sample()
+        log_prob = 0 if self.deterministic else dist.log_prob(action)
+        return action, log_prob
 
 
 class ControllerCombinator(torch.nn.Module):
@@ -168,13 +170,88 @@ class ControllerCombinator(torch.nn.Module):
         return super.parameters()
 
 
+class ControllerNonParametricCombinator(torch.nn.Module):
+    """ The combinator that is modified during lifetime"""
+
+    def __init__(self, D_in, H, D_out, min_std=1e-6, init_std=0.1, load_instinct=False):
+        super(ControllerNonParametricCombinator, self).__init__()
+
+        # Initialize the modules
+        self.controller = Controller(D_in + 1, H, D_out, init_std=init_std)
+        self.instinct = ControllerInstinct(D_in + 1, H, D_out)
+        if load_instinct:
+            loaded_instinct = torch.load('instinct.pt')
+            self.instinct.load_state_dict(self.instinct.state_dict())
+
+        # Initialize the combinator dimensions and the combinator
+        # combinator_input_size = 2
+
+        # self.combinators = nn.ModuleList()
+        # for _ in range(D_out):
+        #     self.combinators.append(nn.Linear(combinator_input_size, 1))
+
+        # self.combinator = nn.Sequential(nn.Linear(combinator_input_size, D_out))
+
+        self.sigma = nn.Parameter(torch.Tensor(D_out))
+
+        self.apply(weight_init)
+
+        self.sigma.data.fill_(math.log(init_std))
+        self.min_log_std = math.log(min_std)
+
+        self.freeze_instinct = load_instinct
+
+    def forward(self, x):
+
+        # Pass the input to the submodules
+        stoch_action, log_prob = self.controller(x)
+        instinct_action, control = self.instinct(x)
+
+        controlled_stoch_action = stoch_action * control
+        controlled_instinct_action = instinct_action * (1 - control)
+
+        final_action = controlled_stoch_action + controlled_instinct_action
+
+        return final_action, log_prob + torch.log(control), control
+
+    def get_combinator_params(self):
+        # comb_params = []
+        # dct = self.named_parameters()
+        # for pkey, ptensor in dct:
+        #    if "combinator" in pkey or pkey == "sigma":
+        #        comb_params.append(ptensor)
+        # return comb_params
+        return self.controller.parameters()
+
+    def get_evolvable_params(self):
+        comb_params = []
+        dct = self.named_parameters()
+        for pkey, ptensor in dct:
+            if not ("instinct" in pkey and self.freeze_instinct):
+                comb_params.append(ptensor)
+        return comb_params
+
+    def parameters(self):
+        return super(ControllerNonParametricCombinator, self).parameters()
+
+
 def init_model(din, dout, args):
     """ Method that gives instantiates the model depending on the program arguments """
-    model = ControllerCombinator(
-        D_in=din,
-        H=100,
-        D_out=dout,
-        init_std=args.init_sigma,
-        load_instinct=args.load_instinct,
-    )
+
+    if args.parametric_combinator:
+        model = ControllerCombinator(
+            D_in=din,
+            H=100,
+            D_out=dout,
+            init_std=args.init_sigma,
+            load_instinct=args.load_instinct,
+        )
+    else:
+        model = ControllerNonParametricCombinator(
+            D_in=din,
+            H=100,
+            D_out=dout,
+            init_std=args.init_sigma,
+            load_instinct=args.load_instinct,
+        )
     return model

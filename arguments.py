@@ -125,10 +125,22 @@ def get_args():
         help="if TRUE, the supported environment will not have no-go zones"
     )
     parser.add_argument(
+        "--rm-exploration-fit",
+        action="store_true",
+        default=False,
+        help="if TRUE, the exploration fitness will be removed",
+    )
+    parser.add_argument(
         "--load-instinct",
         action="store_true",
         default=False,
         help="if TRUE, the pretrained instinct will be loaded from a file"
+    )
+    parser.add_argument(
+        "--parametric-combinator",
+        action="store_true",
+        default=False,
+        help="if TRUE, genetic algorithm will instantiate parametric combinator"
     )
     args = parser.parse_args()
     args.cuda = False

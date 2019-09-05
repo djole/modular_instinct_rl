@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 import navigation_2d
-from model import ControllerCombinator
+from model import ControllerCombinator, ControllerNonParametricCombinator
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -93,7 +93,7 @@ def train_maml_like(
     model = copy.deepcopy(init_model)
 
     optimizer = None
-    if isinstance(model, ControllerCombinator):
+    if isinstance(model, ControllerCombinator) or isinstance(model, ControllerNonParametricCombinator):
         optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -139,7 +139,8 @@ def train_maml_like(
         fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
         fitness_list.append(fitness)
 
-    avg_exploitation_fitness = sum(fitness_list) / num_updates if not args.rm_nogo else 0.0
+    rm_exp_fit = args.rm_nogo or args.rm_exploration_fit
+    avg_exploitation_fitness = 0.0 if rm_exp_fit else sum(fitness_list) / num_updates
     ret_fit = (
         fitness_list if vis else avg_exploitation_fitness + avg_exploration_fitness
     )
@@ -149,6 +150,8 @@ def train_maml_like(
 def train_maml_like_for_trajectory(
     init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
 ):
+    # TODO Remove this function, this is bad programming
+    assert False, "Obsolete piece of code, remove it!"
     env = navigation_2d.Navigation2DEnv(args.rm_nogo)
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
