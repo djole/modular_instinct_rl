@@ -7,7 +7,7 @@ import torch
 import navigation_2d
 from arguments import get_args
 from model import ControllerCombinator, ControllerMonolithic
-from train_test_model import train_maml_like_for_trajectory, select_model_action
+from train_test_model import train_maml_like, select_model_action
 from navigation_2d import dist_2_nogo
 
 NUM_EPISODES = 40
@@ -17,7 +17,7 @@ MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module
 
 
 
-def vis_path(vis):
+def vis_path(vis, saveidx=None):
     """ Visualize the path """
     plt.figure()
     axis = plt.gca()
@@ -36,8 +36,11 @@ def vis_path(vis):
 
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
-
-    plt.show()
+    if saveidx is None:
+        plt.show()
+    else:
+        plt.savefig("plots/for_gifs/img_{}".format(saveidx))
+        plt.close()
 
 
 def get_mesh():
@@ -82,7 +85,7 @@ def run(model, lr, unfreeze, args):
     # env.seed(args.seed)
 
     # c_reward, reached, _, vis = episode_rollout(module, env, vis=True)
-    c_reward, reached, vis = train_maml_like_for_trajectory(
+    c_reward, reached, vis = train_maml_like(
         model,
         args,
         num_episodes=NUM_EPISODES,
