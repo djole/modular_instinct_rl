@@ -108,8 +108,8 @@ def train_maml_like(
         fitness, reached, _, vis_info = episode_rollout(model, env, vis=vis)
         fitness_list.append(fitness)
 
-    avg_exploration_fitness = 0
     for u_idx in range(num_updates):
+        avg_exploration_fitness = 0
         ### Train
         model.controller.deterministic = False
         for ne in range(num_episodes):
