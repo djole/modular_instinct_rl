@@ -8,7 +8,7 @@ import torch
 
 import navigation_2d
 from arguments import get_args
-from model import ControllerCombinator, ControllerMonolithic
+from model import ControllerCombinator, ControllerMonolithic, ControllerNonParametricCombinator
 from train_test_model import episode_rollout, train_maml_like
 
 
@@ -62,9 +62,8 @@ def vis_path(path_rec, action_vec, model_info, goal):
     plt.show()
 
 
-def run(model, learning_rate, unfreeze, args):
+def run(model, learning_rate, args):
     """Run"""
-    args.unfreeze_modules = unfreeze
     task_idx = 1
     # model_filename = "./trained_models/pulled_from_server/model995.pt"
     # model_filename = "./trained_models/pulled_from_server/maml_like_model_20episodes_lastGen436.pt"
@@ -91,21 +90,24 @@ def run(model, learning_rate, unfreeze, args):
     return c_reward
 
 
-def run_for_pool(_, m, args):
-    return run(m, False, args)
+def run_for_pool(_, m, args, lr):
+    return run(m, lr, args)
 
 
 def calc_fitness(model_filename_base, savefile, args, tuple_pckl=False):
     num_exp = NUM_EXP
     m_base_orig = torch.load(model_filename_base)
+    learning_rate = args.lr
     if tuple_pckl:
-        m_base_orig = m_base_orig[0]
-    m_base = ControllerCombinator(2, 4, 100, 2, 2, load_instinct=args.load_instinct)
+        m_placehldr = m_base_orig[0]
+        learning_rate = m_base_orig[1]
+        m_base_orig = m_placehldr
+    m_base = ControllerNonParametricCombinator(2, 100, 2, load_instinct=args.load_instinct)
     m_base.load_state_dict(m_base_orig.state_dict())
 
-    rfp = partial(run_for_pool, m=m_base, args=args)
-    with Pool(20) as pool:
-        experiment_base_fits = list(pool.map(rfp, range(num_exp)))
+    rfp = partial(run_for_pool, m=m_base, args=args, lr=learning_rate)
+    #with Pool(20) as pool:
+    experiment_base_fits = list(map(rfp, range(num_exp)))
 
     experiment_base_fits = list(zip(*experiment_base_fits))
     with open(savefile, "wb") as pckl_file1:
@@ -122,33 +124,13 @@ def main():
 
     args = get_args()
 
-    model_filename_base = "./trained_models/pulled_from_server/20random_goals4modules20episode_monolith_multiplexor/individual_880.pt"
-    model_filename_ring003 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_003.pt"
-    model_filename_ring001 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_001.pt"
-    model_filename_ring009 = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_009.pt"
-    model_filename_ring_elr = "./trained_models/pulled_from_server/20random_RING_goals_20episode_monolith_multiplexor/ring_sample_evLR.pt"
+    model_filename_base = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/non_param_combinator/no_go/individual_230.pt"
+
 
     experiment_base_fits = calc_fitness(
-        model_filename_base, "experiment_fits_BASE.pckl", args
+        model_filename_base, "experiment_fits_BASE.pckl", args, tuple_pckl=True
     )
 
-    experiment_ring003_fits = calc_fitness(
-        model_filename_ring003, "experiment_fits_ring003.pckl", args
-    )
-
-    experiment_ring001_fits = calc_fitness(
-        model_filename_ring001, "experiment_fits_ring001.pckl", args
-    )
-
-    experiment_ring009_fits = calc_fitness(
-        model_filename_ring009, "experiment_fits_ring009.pckl", args
-    )
-
-    experiment_ring_elr_fits = calc_fitness(
-        model_filename_ring_elr, "experiment_fits_ringELR.pckl", args, True
-    )
-
-    assert len(experiment_base_fits) == len(experiment_ring001_fits)
     fig1, axs = plt.subplots(ncols=len(experiment_base_fits), figsize=(30, 15))
 
     try:
@@ -159,10 +141,7 @@ def main():
             ax.boxplot(
                 [
                     experiment_base_fits[i],
-                    experiment_ring003_fits[i],
-                    experiment_ring001_fits[i],
-                    experiment_ring009_fits[i],
-                    experiment_ring_elr_fits[i],
+
                 ],
                 labels=labels,
                 showmeans=True,
@@ -172,10 +151,6 @@ def main():
         axs.boxplot(
             [
                 experiment_base_fits[0],
-                experiment_ring003_fits[0],
-                experiment_ring001_fits[0],
-                experiment_ring009_fits[0],
-                experiment_ring_elr_fits[0],
             ],
             labels=labels,
             showmeans=True,
