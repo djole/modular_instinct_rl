@@ -84,9 +84,9 @@ def episode_rollout(model, env, vis=False):
 
 
 def train_maml_like(
-    init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False
+    init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False, run_idx=0
 ):
-    env = navigation_2d.Navigation2DEnv(rm_nogo=args.rm_nogo)
+    env = navigation_2d.Navigation2DEnv(rm_nogo=args.rm_nogo, reduced_sampling=args.reduce_goals, sample_idx=run_idx)
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 
@@ -140,7 +140,8 @@ def train_maml_like(
         fitness_list.append(fitness)
 
     rm_exp_fit = args.rm_nogo or args.rm_exploration_fit
-    avg_exploitation_fitness = 0.0 if rm_exp_fit else sum(fitness_list) / num_updates
+    avg_exploration_fitness = 0.0 if rm_exp_fit else avg_exploration_fitness
+    avg_exploitation_fitness = sum(fitness_list) / num_updates
     ret_fit = (
         fitness_list if vis else avg_exploitation_fitness + avg_exploration_fitness
     )
@@ -152,7 +153,7 @@ def train_maml_like_for_trajectory(
 ):
     # TODO Remove this function, this is bad programming
     assert False, "Obsolete piece of code, remove it!"
-    env = navigation_2d.Navigation2DEnv(args.rm_nogo)
+    env = navigation_2d.Navigation2DEnv(args.rm_nogo, args.reduce_goals)
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 

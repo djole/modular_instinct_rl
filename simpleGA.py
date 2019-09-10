@@ -185,8 +185,8 @@ class EA:
         torch.set_num_threads(1)
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
-            train_maml_like(individual.model, args, args.lr)
-            for _ in range(num_attempts)
+            train_maml_like(individual.model, args, args.lr, run_idx=num_att)
+            for num_att in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
         return sum(fits), sum(reacheds)
@@ -244,7 +244,7 @@ def rollout(args, din, dout, device, pop_size=140, elite_prop=0.1, debug=False):
     for iteration in range(1000):
         start_time = time.time()
         solutions = solver.ask()
-        if args.debug:
+        if args.debug or args.reduce_goals:
             num_env_samples = 2
         else:
             num_env_samples = 20

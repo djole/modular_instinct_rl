@@ -47,7 +47,7 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, sample_idx=0):
         super(Navigation2DEnv, self).__init__()
 
         self.observation_space = spaces.Box(
@@ -66,8 +66,11 @@ class Navigation2DEnv(gym.Env):
 
         # An option to remove no-go zones for baseline purposes
         self.rm_nogo = rm_nogo
+        # An option that cycles only through two goals
+        self.reduced_sampling = reduced_sampling
 
-        self.task_sequence = [[0.7, 0.35], [-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35]]
+        self.task_sequence = [[0.35, 0.35],[-0.4, -0.3]]
+        self.predetermined_pointer = sample_idx % len(self.task_sequence)
 
     def _sample_ring_task(self):
         radius = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
@@ -94,12 +97,18 @@ class Navigation2DEnv(gym.Env):
         goal = np.array([[rand_x, rand_y]])
         return goal
 
+    def _sample_predetermined(self):
+        goals = [self.task_sequence[self.predetermined_pointer]]
+        self.predetermined_pointer += 1
+        self.predetermined_pointer = self.predetermined_pointer % len(self.task_sequence)
+        return goals
+
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def sample_tasks(self):
-        goals = self._sample_square_wth_nogo_zone()
+        goals = self._sample_predetermined() if self.reduced_sampling else self._sample_square_wth_nogo_zone()
         # goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]

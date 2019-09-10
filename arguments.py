@@ -142,6 +142,12 @@ def get_args():
         default=False,
         help="if TRUE, genetic algorithm will instantiate parametric combinator"
     )
+    parser.add_argument(
+        "--reduce-goals",
+        action='store_true',
+        default=False,
+        help="if TRUE, run meta-learning on two predetermined goals. Used for quick experiments."
+    )
     args = parser.parse_args()
     args.cuda = False
 

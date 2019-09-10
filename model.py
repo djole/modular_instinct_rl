@@ -192,13 +192,7 @@ class ControllerNonParametricCombinator(torch.nn.Module):
 
         # self.combinator = nn.Sequential(nn.Linear(combinator_input_size, D_out))
 
-        self.sigma = nn.Parameter(torch.Tensor(D_out))
-
         self.apply(weight_init)
-
-        self.sigma.data.fill_(math.log(init_std))
-        self.min_log_std = math.log(min_std)
-
         self.freeze_instinct = load_instinct
 
     def forward(self, x):
