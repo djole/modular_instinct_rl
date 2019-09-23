@@ -16,8 +16,36 @@ NUM_EXP = 5
 MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/larger_pop_smaller_punishment/individual_175.pt"
 
 
+def vis_instinct_action(model):
+    input_xs = get_mesh()
+    z = [select_model_action(model, (x, dist_2_nogo(*x)))[2] for x in input_xs]
+    plt.figure()
+    axis = plt.gca()
+    # x, y = input_xs.transpose()[0], input_xs.transpose()[1]
+    # x = np.reshape(x, (40, 40))
+    # y = np.reshape(y, (40, 40))
+    # z = np.reshape(z, (40, 40))
+    # axis.pcolormesh(x, y, z, cmap="YlGn")
+    input_xs_t = input_xs.transpose()
+    z_tensor = torch.stack(z)
+    z_tensor_t = z_tensor.t()
+    axis.quiver(
+        input_xs_t[0],
+        input_xs_t[1],
+        z_tensor_t[0].detach().numpy(),
+        z_tensor_t[1].detach().numpy(),
+        #scale_units="xy",
+        #units="xy",
+        #angles="xy",
+        #scale=0.001,
+    )
+    axis.set_xlim(-0.5, 0.5)
+    axis.set_ylim(-0.5, 0.5)
 
-def vis_path(vis, saveidx=None):
+    plt.show()
+
+
+def vis_path(vis, saveidx=None, slice=None):
     """ Visualize the path """
     plt.figure()
     axis = plt.gca()
@@ -25,9 +53,13 @@ def vis_path(vis, saveidx=None):
         path_rec = v[1]
         goal = v[3]
 
-        pth = list(zip(*path_rec))
+
+        if slice is None:
+            pth = list(zip(*path_rec))
+        else:
+            pth = list(zip(*path_rec[slice - 1:slice]))
         axis.plot(*pth, color="green")
-        axis.scatter(*goal, color="red")
+        axis.scatter(*goal, color="red", s=250)
 
     axis.add_patch(plt.Rectangle((0.2, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
     axis.add_patch(plt.Rectangle((-0.3, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
@@ -56,7 +88,7 @@ def get_mesh():
 def vis_heatmap(model):
     input_xs = get_mesh()
     z = [
-        select_model_action(model, (x, dist_2_nogo(*x)))[2][1].item() for x in input_xs
+        select_model_action(model, (x, dist_2_nogo(*x)))[2].mean().item() for x in input_xs
     ]
     plt.figure()
     axis = plt.gca()
@@ -64,7 +96,9 @@ def vis_heatmap(model):
     x = np.reshape(x, (40, 40))
     y = np.reshape(y, (40, 40))
     z = np.reshape(z, (40, 40))
-    axis.pcolormesh(x, y, z, cmap="RdBu")
+    axis.pcolormesh(x, y, z, cmap="PiYG")
+    #axis.imshow(z, vmin=z.min(), vmax=z.max())
+    # axis.pcolormesh(x, y, z, cmap="Reds", alpha=0.5)
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
 
@@ -103,6 +137,7 @@ def run(model, lr, unfreeze, args):
 def main():
     """Main"""
     import matplotlib.pyplot as plt
+
     args = get_args()
 
     num_exp = NUM_EXP
