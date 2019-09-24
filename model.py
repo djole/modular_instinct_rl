@@ -118,14 +118,14 @@ class ControllerInstinctSigma(torch.nn.Module):
             nn.Sigmoid(),
         )
 
-        self.deterministic = False
+        self.controller.deterministic = False
 
     def forward(self, x):
         means = self.controller(x) * 0.1
         sigmas = self.sigma_controller(x)
         dist = torch.distributions.Normal(means, sigmas)
-        action = dist.mean if self.deterministic else dist.sample()
-        log_prob = 0 if self.deterministic else dist.log_prob(action)
+        action = dist.mean if self.controller.deterministic else dist.sample()
+        log_prob = 0 if self.controller.deterministic else dist.log_prob(action)
         return action, log_prob, sigmas
 
     def get_combinator_params(self):
