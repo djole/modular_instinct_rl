@@ -92,7 +92,6 @@ def get_args():
         help="Define the number of modules in the model.",
     )
 
-
     """Arguments that change the behaviour of the model """
     parser.add_argument(
         "--num-proc",
@@ -122,7 +121,7 @@ def get_args():
         "--rm-nogo",
         action="store_true",
         default=False,
-        help="if TRUE, the supported environment will not have no-go zones"
+        help="if TRUE, the supported environment will not have no-go zones",
     )
     parser.add_argument(
         "--rm-exploration-fit",
@@ -134,19 +133,27 @@ def get_args():
         "--load-instinct",
         action="store_true",
         default=False,
-        help="if TRUE, the pretrained instinct will be loaded from a file"
+        help="if TRUE, the pretrained instinct will be loaded from a file",
     )
-    parser.add_argument(
+    model_type_group = parser.add_mutually_exclusive_group()
+    model_type_group.add_argument(
         "--parametric-combinator",
         action="store_true",
         default=False,
-        help="if TRUE, genetic algorithm will instantiate parametric combinator"
+        help="if TRUE, genetic algorithm will instantiate parametric combinator",
     )
+    model_type_group.add_argument(
+        "--instinct-sigma",
+        action="store_true",
+        default=False,
+        help="If TRUE, initialize the model that uses an instinct network that outputs the sigma value of the exploration distribution",
+    )
+
     parser.add_argument(
         "--reduce-goals",
-        action='store_true',
+        action="store_true",
         default=False,
-        help="if TRUE, run meta-learning on two predetermined goals. Used for quick experiments."
+        help="if TRUE, run meta-learning on two predetermined goals. Used for quick experiments.",
     )
     args = parser.parse_args()
     args.cuda = False

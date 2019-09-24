@@ -81,10 +81,8 @@ class Controller(torch.nn.Module):
         )
         self.sigma = nn.Parameter(torch.Tensor(D_out))
         self.sigma.data.fill_(math.log(init_std))
-
         self.min_log_std = math.log(min_std)
-        self.saved_log_probs = []
-        self.rewards = []
+
         self.deterministic = False
 
     def forward(self, x):
@@ -95,6 +93,56 @@ class Controller(torch.nn.Module):
         log_prob = 0 if self.deterministic else dist.log_prob(action)
         return action, log_prob
 
+class ControllerInstinctSigma(torch.nn.Module):
+    """Single element of the modular network"""
+
+    def __init__(self, D_in, H, D_out):
+        super(ControllerInstinctSigma, self).__init__()
+        D_in += 1
+        self.din = D_in
+        self.controller = nn.Sequential(
+            nn.Linear(D_in, H),
+            nn.ReLU(),
+            nn.Linear(H, H),
+            nn.ReLU(),
+            nn.Linear(H, D_out),
+            nn.Tanh(),
+        )
+
+        self.sigma_controller = nn.Sequential(
+            nn.Linear(D_in, H),
+            nn.ReLU(),
+            nn.Linear(H, H),
+            nn.ReLU(),
+            nn.Linear(H, D_out),
+            nn.Sigmoid(),
+        )
+
+        self.deterministic = False
+
+    def forward(self, x):
+        means = self.controller(x) * 0.1
+        sigmas = self.sigma_controller(x)
+        dist = torch.distributions.Normal(means, sigmas)
+        action = dist.mean if self.deterministic else dist.sample()
+        log_prob = 0 if self.deterministic else dist.log_prob(action)
+        return action, log_prob, sigmas
+
+    def get_combinator_params(self):
+        # comb_params = []
+        # dct = self.named_parameters()
+        # for pkey, ptensor in dct:
+        #    if "combinator" in pkey or pkey == "sigma":
+        #        comb_params.append(ptensor)
+        # return comb_params
+        # return self.controller.parameters()
+        return super(ControllerInstinctSigma, self).parameters()
+
+    def get_evolvable_params(self):
+        return super(ControllerInstinctSigma, self).parameters()
+
+    def parameters(self):
+        return super(ControllerInstinctSigma, self).parameters()
 
 class ControllerCombinator(torch.nn.Module):
     """ The combinator that is modified during lifetime"""
@@ -180,7 +228,7 @@ class ControllerNonParametricCombinator(torch.nn.Module):
         self.controller = Controller(D_in + 1, H, D_out, init_std=init_std)
         self.instinct = ControllerInstinct(D_in + 1, H, D_out)
         if load_instinct:
-            loaded_instinct = torch.load('instinct.pt')
+            loaded_instinct = torch.load("instinct.pt")
             self.instinct.load_state_dict(self.instinct.state_dict())
 
         # Initialize the combinator dimensions and the combinator
@@ -240,6 +288,8 @@ def init_model(din, dout, args):
             init_std=args.init_sigma,
             load_instinct=args.load_instinct,
         )
+    elif args.instinct_sigma:
+        model = ControllerInstinctSigma(D_in=din, H=100, D_out=dout)
     else:
         model = ControllerNonParametricCombinator(
             D_in=din,
