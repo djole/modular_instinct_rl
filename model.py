@@ -93,6 +93,7 @@ class Controller(torch.nn.Module):
         log_prob = 0 if self.deterministic else dist.log_prob(action)
         return action, log_prob
 
+
 class ControllerInstinctSigma(torch.nn.Module):
     """Single element of the modular network"""
 
@@ -119,10 +120,11 @@ class ControllerInstinctSigma(torch.nn.Module):
         )
 
         self.controller.deterministic = False
+        self.apply(weight_init)
 
     def forward(self, x):
         means = self.controller(x) * 0.1
-        sigmas = self.sigma_controller(x)
+        sigmas = self.sigma_controller(x) * 0.05
         dist = torch.distributions.Normal(means, sigmas)
         action = dist.mean if self.controller.deterministic else dist.sample()
         log_prob = 0 if self.controller.deterministic else dist.log_prob(action)
@@ -143,6 +145,7 @@ class ControllerInstinctSigma(torch.nn.Module):
 
     def parameters(self):
         return super(ControllerInstinctSigma, self).parameters()
+
 
 class ControllerCombinator(torch.nn.Module):
     """ The combinator that is modified during lifetime"""
