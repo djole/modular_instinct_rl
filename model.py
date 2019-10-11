@@ -228,8 +228,8 @@ class ControllerNonParametricCombinator(torch.nn.Module):
         super(ControllerNonParametricCombinator, self).__init__()
 
         # Initialize the modules
-        self.controller = Controller(D_in + 1, H, D_out, init_std=init_std)
-        self.instinct = ControllerInstinct(D_in + 1, H, D_out)
+        self.controller = Controller(D_in, H, D_out, init_std=init_std)
+        self.instinct = ControllerInstinct(D_in, H, D_out)
         if load_instinct:
             loaded_instinct = torch.load("instinct.pt")
             self.instinct.load_state_dict(self.instinct.state_dict())

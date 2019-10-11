@@ -23,10 +23,10 @@ def dist_2_nogo(x, y):
 
 def is_nogo(x, y):
     """Check if agent is in the nogo zone"""
-    fst_square = (0.2 < x < 0.3) and (0.2 < y < 0.3)
-    snd_square = (-0.3 < x < -0.2) and (0.2 < y < 0.3)
-    trd_square = (0.2 < x < 0.3) and (-0.3 < y < -0.2)
-    frt_square = (-0.3 < x < -0.2) and (-0.3 < y < -0.2)
+    fst_square = (0.05 < x < 0.4) and (0.05 < y < 0.4)
+    snd_square = (-0.4 < x < -0.05) and (0.05 < y < 0.4)
+    trd_square = (0.05 < x < 0.4) and (-0.4 < y < -0.05)
+    frt_square = (-0.4 < x < -0.05) and (-0.4 < y < -0.05)
     if fst_square or snd_square or trd_square or frt_square:
         return True
     return False
@@ -47,7 +47,7 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, sample_idx=0):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, sample_idx=0, rm_dist_to_nogo=True):
         super(Navigation2DEnv, self).__init__()
 
         self.observation_space = spaces.Box(
@@ -68,6 +68,8 @@ class Navigation2DEnv(gym.Env):
         self.rm_nogo = rm_nogo
         # An option that cycles only through two goals
         self.reduced_sampling = reduced_sampling
+        # An option that removes the information from state about the distance to the center of a nogo zone
+        self.rm_dist_to_nogo = rm_dist_to_nogo
 
         self.task_sequence = [[0.35, 0.35],[-0.4, -0.3]]
         self.predetermined_pointer = sample_idx % len(self.task_sequence)
@@ -81,16 +83,14 @@ class Navigation2DEnv(gym.Env):
 
     def _sample_square_wth_nogo_zone(self):
         rand_x = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
-        if (0.2 <= rand_x <= 0.3) or (-0.3 <= rand_x <= -0.2):
+        if rand_x <= 0.4 and rand_x >= -0.4:
             # If random x could be in the no-go zone
             # Sample randomly from four slices
             dart = self.np_random.uniform(0.0, 1.0, size=(1, 1))[0][0]
-            if dart <= 0.25:
-                rand_y = self.np_random.uniform(-0.5, -0.3, size=(1, 1))[0][0]
-            elif 0.25 < dart <= 0.75:
-                rand_y = self.np_random.uniform(-0.2, 0.2, size=(1, 1))[0][0]
-            else:
-                rand_y = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
+            if dart <= 0.5:
+                rand_y = self.np_random.uniform(-0.5, -0.4, size=(1, 1))[0][0]
+            elif dart > 0.5:
+                rand_y = self.np_random.uniform(0.4, 0.5, size=(1, 1))[0][0]
         else:
             rand_y = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
 
@@ -126,7 +126,13 @@ class Navigation2DEnv(gym.Env):
         self.episode_y_path.clear()
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
-        return (self._state, d2ng)
+
+        if self.rm_dist_to_nogo:
+            state_info = self._state
+        else:
+            state_info = (self._state, d2ng)
+
+        return state_info
 
     def step(self, action):
         action = np.clip(action, -0.1, 0.1)
@@ -152,8 +158,13 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
+        if self.rm_dist_to_nogo:
+            state_info = self._state
+        else:
+            state_info = (self._state, d2ng)
+
         return (
-            (self._state, d2ng),
+            state_info,
             reward,
             done,
             reached,

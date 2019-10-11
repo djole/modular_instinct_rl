@@ -11,11 +11,11 @@ EPS = np.finfo(np.float32).eps.item()
 
 
 def select_model_action(model, state):
-    position, dist_2_nogo = state
-    position = torch.from_numpy(position).float()
-    dist_2_nogo = torch.tensor([dist_2_nogo])
-    model_input = torch.cat([position, dist_2_nogo])
-    action, action_log_prob, debug_info = model(model_input)
+    state_ = state
+    state_ = torch.from_numpy(state_).float()
+    #dist_2_nogo = torch.tensor([dist_2_nogo])
+    #model_input = torch.cat([position, dist_2_nogo])
+    action, action_log_prob, debug_info = model(state_)
     # return action.item()
     return action.detach().numpy(), action_log_prob, debug_info
 
