@@ -12,4 +12,4 @@ source .virtual/bin/activate
 # to get immediate release of stdout into the log file.
 # The tool can be installed: sudo apt install expect-dev
 # After, add "unbuffer" at the beginning of the next line (without quotes).
-unbuffer python main.py --num-proc=70 > EVOLUTION.log
+mpirun -n 2 python main.py --debug

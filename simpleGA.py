@@ -3,7 +3,6 @@ import itertools as itools
 import os
 import time
 from functools import partial
-from multiprocessing import Pool
 from statistics import median
 
 import numpy as np
@@ -227,7 +226,7 @@ def save_population(args, population, best_ind, generation_idx):
     )
 
 
-def rollout(args, din, dout, device, pop_size=140, elite_prop=0.1, debug=False):
+def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=False):
     assert (
         elite_prop < 1.0 and elite_prop > 0.0
     ), "Elite needs to be a measure of proportion of population, 0 < elite_prop < 1"
@@ -253,10 +252,9 @@ def rollout(args, din, dout, device, pop_size=140, elite_prop=0.1, debug=False):
             solver.fitness_calculation, args=args, num_attempts=num_env_samples
         )
         if args.debug:
-            fitness_list = list(map(fitness_calculation_, solutions))
+            fitness_list = list(pool.map(fitness_calculation_, solutions))
         else:
-            with Pool(processes=args.num_proc) as pool:
-                fitness_list = list(pool.map(fitness_calculation_, solutions))
+            fitness_list = list(pool.map(fitness_calculation_, solutions))
 
         solver.tell(fitness_list)
         result, best_f = solver.step(iteration, args, device)

@@ -1,6 +1,7 @@
 """the entry point into the program"""
 import torch
 from simpleGA import rollout
+from mpipool import Pool
 
 D_IN, D_OUT = 2, 2
 
@@ -10,11 +11,11 @@ def main():
 
     args = get_args()
     device = torch.device("cpu")
-
+    pool = Pool()
     if args.debug:
-        rollout(args, D_IN, D_OUT, device, pop_size=5, elite_prop=0.2)
+        rollout(args, D_IN, D_OUT, pool, device, pop_size=5, elite_prop=0.2)
     else:
-        rollout(args, D_IN, D_OUT, device, pop_size=(args.num_proc * 4))
+        rollout(args, D_IN, D_OUT, pool, device, pop_size=(args.num_proc * 4))
 
 
 if __name__ == "__main__":
