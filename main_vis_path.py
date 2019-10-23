@@ -61,10 +61,10 @@ def vis_path(vis, saveidx=None, slice=None):
         axis.plot(*pth, color="green")
         axis.scatter(*goal, color="red", s=250)
 
-    axis.add_patch(plt.Rectangle((0.2, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.3, 0.2), 0.1, 0.1, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((0.2, -0.3), 0.1, 0.1, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.3, -0.3), 0.1, 0.1, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((0.05, 0.05), 0.35, 0.35, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.4, 0.05), 0.35, 0.35, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((0.05, -0.4), 0.35, 0.35, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-0.4, -0.4), 0.35, 0.35, fc="r", alpha=0.1))
 
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
@@ -88,7 +88,7 @@ def get_mesh():
 def vis_heatmap(model):
     input_xs = get_mesh()
     z = [
-        select_model_action(model, (x, dist_2_nogo(*x)))[2].mean().item() for x in input_xs
+        select_model_action(model, x)[2].mean().item() for x in input_xs
     ]
     plt.figure()
     axis = plt.gca()
