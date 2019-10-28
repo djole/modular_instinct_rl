@@ -11,7 +11,8 @@ import torch
 
 import navigation_2d
 from model import init_model
-from train_test_model import train_maml_like
+from a2c_ppo_acktr.model import init_ppo
+from train_test_model import train_maml_like, train_maml_like_ppo
 
 # MAXTSK_CHLD = 10
 START_LEARNING_RATE = 7e-4
@@ -82,7 +83,15 @@ class EA:
                 start_model, start_lr = torch.load(saved_files[n])
                 print("Load individual from {}".format(saved_files[n]))
             else:
-                start_model = init_model(din, dout, args)
+                start_model = (
+                    init_ppo(
+                        navigation_2d.Navigation2DEnv(
+                            rm_nogo=args.rm_nogo, reduced_sampling=False, sample_idx=1
+                        )
+                    )
+                    if args.ppo
+                    else init_model(din, dout, args)
+                )
                 start_lr = args.lr
 
             ind = Individual(start_model, device, rank=n, learn_rate=start_lr)
@@ -185,7 +194,9 @@ class EA:
         torch.set_num_threads(1)
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
-            train_maml_like(individual.model, args, args.lr, run_idx=num_att)
+            train_maml_like_ppo(individual.model, args, args.lr, run_idx=num_att)
+            if args.ppo
+            else train_maml_like(individual.model, args, args.lr, run_idx=num_att)
             for num_att in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
