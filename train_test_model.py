@@ -1,11 +1,17 @@
 """ Module for training functions """
 import copy
+from collections import deque
 
 import numpy as np
 import torch
 
 import navigation_2d
 from model import ControllerCombinator, ControllerNonParametricCombinator
+from a2c_ppo_acktr.model import Policy
+from a2c_ppo_acktr.algo import PPO
+from a2c_ppo_acktr.storage import RolloutStorage
+from a2c_ppo_acktr import utils
+from a2c_ppo_acktr.evaluation import evaluate
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -13,8 +19,8 @@ EPS = np.finfo(np.float32).eps.item()
 def select_model_action(model, state):
     state_ = state
     state_ = torch.from_numpy(state_).float()
-    #dist_2_nogo = torch.tensor([dist_2_nogo])
-    #model_input = torch.cat([position, dist_2_nogo])
+    # dist_2_nogo = torch.tensor([dist_2_nogo])
+    # model_input = torch.cat([position, dist_2_nogo])
     action, action_log_prob, debug_info = model(state_)
     # return action.item()
     return action.detach().numpy(), action_log_prob, debug_info
@@ -83,17 +89,136 @@ def episode_rollout(model, env, vis=False):
     )
 
 
-def train_maml_like(
-    init_model, args, learning_rate, num_episodes=20, num_updates=1, vis=False, run_idx=0
+def train_maml_like_ppo(
+    init_model,
+    args,
+    learning_rate,
+    num_episodes=20,
+    num_updates=1,
+    vis=False,
+    run_idx=0,
 ):
-    env = navigation_2d.Navigation2DEnv(rm_nogo=args.rm_nogo, reduced_sampling=args.reduce_goals, sample_idx=run_idx)
+
+    torch.set_num_threads(1)
+
+    env = navigation_2d.Navigation2DEnv(
+        rm_nogo=args.rm_nogo, reduced_sampling=args.reduce_goals, sample_idx=run_idx
+    )
+    new_task = env.sample_tasks()
+    env.reset_task(new_task[0])
+
+    # actor_critic = Policy(
+    #    env.observation_space.shape,
+    #    env.action_space,
+    #    base_kwargs={'recurrent': args.recurrent_policy})
+    actor_critic = copy.deepcopy(init_model)
+
+    agent = PPO(
+        actor_critic,
+        args.clip_param,
+        args.ppo_epoch,
+        args.num_mini_batch,
+        args.value_loss_coef,
+        args.entropy_coef,
+        lr=learning_rate,
+        eps=args.eps,
+        max_grad_norm=args.max_grad_norm,
+    )
+
+    num_steps = env.horizon
+
+    rollouts = RolloutStorage(
+        num_steps,
+        1,
+        env.observation_space.shape,
+        env.action_space,
+        actor_critic.recurrent_hidden_state_size,
+    )
+
+    obs = env.reset()
+    if not isinstance(obs, torch.Tensor):
+        obs = torch.from_numpy(obs).float()
+    rollouts.obs[0].copy_(obs)
+
+    fits = []
+
+    for j in range(num_updates):
+        for step in range(num_steps):
+            # Sample actions
+            with torch.no_grad():
+                value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
+                    rollouts.obs[step],
+                    rollouts.recurrent_hidden_states[step],
+                    rollouts.masks[step],
+                )
+
+            # Obser reward and next obs
+            obs, reward, done, *infos = env.step(action[0])
+
+            # If done then clean the history of observations.
+            masks = torch.FloatTensor([[0.0] if done else [1.0]])
+            bad_masks = torch.FloatTensor(
+                [[1.0]]
+            )
+
+            if not isinstance(obs, torch.Tensor):
+                obs = torch.from_numpy(obs)
+            rollouts.insert(
+                obs,
+                recurrent_hidden_states,
+                action,
+                action_log_prob,
+                value,
+                torch.Tensor([reward]),
+                masks,
+                bad_masks,
+            )
+
+        with torch.no_grad():
+            next_value = actor_critic.get_value(
+                rollouts.obs[-1],
+                rollouts.recurrent_hidden_states[-1],
+                rollouts.masks[-1],
+            ).detach()
+
+        rollouts.compute_returns(
+            next_value,
+            use_gae=False,
+            gamma=args.gamma,
+            gae_lambda=0.95,
+            use_proper_time_limits=False,
+        )
+
+        value_loss, action_loss, dist_entropy = agent.update(rollouts)
+
+        rollouts.after_update()
+
+        fits.append(evaluate(actor_critic, env))
+
+    return fits[-1]
+
+
+def train_maml_like(
+    init_model,
+    args,
+    learning_rate,
+    num_episodes=20,
+    num_updates=1,
+    vis=False,
+    run_idx=0,
+):
+    env = navigation_2d.Navigation2DEnv(
+        rm_nogo=args.rm_nogo, reduced_sampling=args.reduce_goals, sample_idx=run_idx
+    )
     new_task = env.sample_tasks()
     env.reset_task(new_task[0])
 
     model = copy.deepcopy(init_model)
 
     optimizer = None
-    if isinstance(model, ControllerCombinator) or isinstance(model, ControllerNonParametricCombinator):
+    if isinstance(model, ControllerCombinator) or isinstance(
+        model, ControllerNonParametricCombinator
+    ):
         optimizer = torch.optim.Adam(model.get_combinator_params(), lr=learning_rate)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)

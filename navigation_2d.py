@@ -1,5 +1,6 @@
 """ 2D navigation environment """
 import gym
+import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
@@ -136,6 +137,9 @@ class Navigation2DEnv(gym.Env):
 
     def step(self, action):
         action = np.clip(action, -0.1, 0.1)
+        if isinstance(action, torch.Tensor):
+            action = action.detach().numpy()
+
         assert self.action_space.contains(action)
         self._state = self._state + action
 

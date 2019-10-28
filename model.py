@@ -220,7 +220,6 @@ class ControllerCombinator(torch.nn.Module):
     def parameters(self):
         return super.parameters()
 
-
 class ControllerNonParametricCombinator(torch.nn.Module):
     """ The combinator that is modified during lifetime"""
 

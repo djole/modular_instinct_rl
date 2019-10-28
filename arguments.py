@@ -143,6 +143,12 @@ def get_args():
         help="if TRUE, genetic algorithm will instantiate parametric combinator",
     )
     model_type_group.add_argument(
+        "--ppo",
+        action="store_true",
+        default=False,
+        help="if TRUE, genetic algorithm will instantiate PPO as the main controller model",
+    )
+    model_type_group.add_argument(
         "--instinct-sigma",
         action="store_true",
         default=False,
@@ -154,6 +160,47 @@ def get_args():
         action="store_true",
         default=False,
         help="if TRUE, run meta-learning on two predetermined goals. Used for quick experiments.",
+    )
+
+    """ Arguments specific to PPO module and are copied directly from the PPO main implementation as defaults"""
+    parser.add_argument(
+        "--clip-param",
+        type=float,
+        default=0.2,
+        help="ppo clip parameter (default: 0.2)",
+    )
+    parser.add_argument(
+        "--ppo-epoch", type=int, default=4, help="number of ppo epochs (default: 4)"
+    )
+    parser.add_argument(
+        "--num-mini-batch",
+        type=int,
+        default=32,
+        help="number of batches for ppo (default: 32)",
+    )
+    parser.add_argument(
+        "--entropy-coef",
+        type=float,
+        default=0.01,
+        help="entropy term coefficient (default: 0.01)",
+    )
+    parser.add_argument(
+        "--value-loss-coef",
+        type=float,
+        default=0.5,
+        help="value loss coefficient (default: 0.5)",
+    )
+    parser.add_argument(
+        "--eps",
+        type=float,
+        default=1e-5,
+        help="RMSprop optimizer epsilon (default: 1e-5)",
+    )
+    parser.add_argument(
+        "--max-grad-norm",
+        type=float,
+        default=0.5,
+        help="max norm of gradients (default: 0.5)",
     )
     args = parser.parse_args()
     args.cuda = False
