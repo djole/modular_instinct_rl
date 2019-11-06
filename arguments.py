@@ -175,8 +175,8 @@ def get_args():
     parser.add_argument(
         "--num-mini-batch",
         type=int,
-        default=32,
-        help="number of batches for ppo (default: 32)",
+        default=1,
+        help="number of batches for ppo (default: 1)",
     )
     parser.add_argument(
         "--entropy-coef",
@@ -202,6 +202,21 @@ def get_args():
         default=0.5,
         help="max norm of gradients (default: 0.5)",
     )
+    parser.add_argument(
+        '--use-gae',
+        action='store_true',
+        default=False,
+        help='use generalized advantage estimation')
+    parser.add_argument(
+        '--gae-lambda',
+        type=float,
+        default=0.95,
+        help='gae lambda parameter (default: 0.95)')
+    parser.add_argument(
+        '--use-proper-time-limits',
+        action='store_true',
+        default=False,
+        help='compute returns taking into account time limits')
     args = parser.parse_args()
     args.cuda = False
 

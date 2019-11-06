@@ -1,7 +1,7 @@
 """the entry point into the program"""
 import torch
 from simpleGA import rollout
-from mpipool import Pool
+from multiprocessing import Pool
 
 D_IN, D_OUT = 2, 2
 

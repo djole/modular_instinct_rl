@@ -6,6 +6,9 @@ import numpy as np
 from gym import spaces
 from gym.utils import seeding
 
+from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
+from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+
 from math import pi, cos, sin, pow, sqrt
 
 HORIZON = 100
@@ -32,6 +35,17 @@ def is_nogo(x, y):
         return True
     return False
 
+def unpeele_navigation_env(env, envIdx):
+    if isinstance(env, Navigation2DEnv):
+        return env
+    elif isinstance(env, DummyVecEnv) or isinstance(env, ShmemVecEnv):
+        return unpeele_navigation_env(env.envs[envIdx], envIdx)
+    else:
+        try:
+            env = env.env
+        except:
+            env = env.venv
+        return unpeele_navigation_env(env, envIdx)
 
 class Navigation2DEnv(gym.Env):
     """2D navigation problems, as described in [1]. The code is adapted from 
@@ -48,7 +62,7 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, sample_idx=0, rm_dist_to_nogo=True):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=True):
         super(Navigation2DEnv, self).__init__()
 
         self.observation_space = spaces.Box(
@@ -72,8 +86,12 @@ class Navigation2DEnv(gym.Env):
         # An option that removes the information from state about the distance to the center of a nogo zone
         self.rm_dist_to_nogo = rm_dist_to_nogo
 
-        self.task_sequence = [[0.35, 0.35],[-0.4, -0.3]]
-        self.predetermined_pointer = sample_idx % len(self.task_sequence)
+        self.task_sequence = [[0.35, 0.45],[-0.45, -0.23]]
+
+    def set_arguments(self, rm_nogo, reduced_sampling, rm_dist_to_nogo):
+        self.rm_nogo = rm_nogo
+        self.reduced_sampling = reduced_sampling
+        self.rm_dist_to_nogo = rm_dist_to_nogo
 
     def _sample_ring_task(self):
         radius = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
@@ -98,18 +116,17 @@ class Navigation2DEnv(gym.Env):
         goal = np.array([[rand_x, rand_y]])
         return goal
 
-    def _sample_predetermined(self):
-        goals = [self.task_sequence[self.predetermined_pointer]]
-        self.predetermined_pointer += 1
-        self.predetermined_pointer = self.predetermined_pointer % len(self.task_sequence)
+    def _sample_predetermined(self, idx):
+        idx = idx % len(self.task_sequence)
+        goals = [self.task_sequence[idx]]
         return goals
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def sample_tasks(self):
-        goals = self._sample_predetermined() if self.reduced_sampling else self._sample_square_wth_nogo_zone()
+    def sample_tasks(self, idx):
+        goals = self._sample_predetermined(idx) if self.reduced_sampling else self._sample_square_wth_nogo_zone()
         # goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
@@ -167,13 +184,17 @@ class Navigation2DEnv(gym.Env):
         else:
             state_info = (self._state, d2ng)
 
+        info_dict = {'reached' : reached,
+            'cummulative_reward':self.cummulative_reward,
+            'task':self._task,
+            'done':done
+                     }
+
         return (
             state_info,
             reward,
             done,
-            reached,
-            self.cummulative_reward,
-            self._task,
+            info_dict,
         )
 
     def render_episode(self):

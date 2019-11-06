@@ -85,7 +85,7 @@ class EA:
                 start_model = (
                     init_ppo(
                         navigation_2d.Navigation2DEnv(
-                            rm_nogo=args.rm_nogo, reduced_sampling=False, sample_idx=1
+                            rm_nogo=args.rm_nogo, reduced_sampling=False
                         )
                     )
                     if args.ppo
@@ -170,17 +170,20 @@ class EA:
                 continue
 
             dart = int(torch.rand(1) * self.to_select)
+            # Select parent and child
             parent = self.selected[dart]
-            indiv = self.population[i]
-            indiv.model.load_state_dict(parent.model.state_dict())
+            child = self.population[i]
+            # copy the parent genes to the child genes
+            child.model.load_state_dict(parent.model.state_dict())
+            child.learning_rate = parent.learning_rate
             # apply mutation to model parameters
-            for p in indiv.model.get_evolvable_params():
+            for p in child.model.get_evolvable_params():
                 mutation = torch.randn_like(p.data) * self.sigma
                 p.data += mutation
             # apply mutation to learning rate
-            indiv.learning_rate += torch.randn((1, 1)).item() * 0.01
-            if indiv.learning_rate < 0:
-                indiv.learning_rate *= -1
+            child.learning_rate += torch.randn((1, 1)).item() * 0.001
+            if child.learning_rate < 0:
+                child.learning_rate *= -1
 
         if self.sigma > self.min_sigma:
             self.sigma *= self.sigma_decay
@@ -193,9 +196,9 @@ class EA:
         torch.set_num_threads(1)
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
-            train_maml_like_ppo(individual.model, args, args.lr, run_idx=num_att)
+            train_maml_like_ppo(individual.model, args, individual.learning_rate, run_idx=num_att)
             if args.ppo
-            else train_maml_like(individual.model, args, args.lr, run_idx=num_att)
+            else train_maml_like(individual.model, args, individual.learning_rate, run_idx=num_att)
             for num_att in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
@@ -263,7 +266,7 @@ def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=F
             solver.fitness_calculation, args=args, num_attempts=num_env_samples
         )
         if args.debug:
-            fitness_list = list(pool.map(fitness_calculation_, solutions))
+            fitness_list = list(map(fitness_calculation_, solutions))
         else:
             fitness_list = list(pool.map(fitness_calculation_, solutions))
 

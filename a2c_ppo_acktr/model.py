@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,6 +8,7 @@ import torch.nn.functional as F
 from a2c_ppo_acktr.distributions import Bernoulli, Categorical, DiagGaussian
 from a2c_ppo_acktr.utils import init
 from model import ControllerInstinct, weight_init
+
 
 
 class Flatten(nn.Module):
@@ -20,7 +23,7 @@ class PolicyWithInstinct(nn.Module):
         self.instinct = ControllerInstinct(obs_shape[0], 100, action_space.shape[0])
 
         if load_instinct:
-            loaded_instinct = torch.load("instinct.pt")
+            loaded_instinct = torch.load(os.path.join(os.path.dirname(__file__), "../instinct.pt"))
             self.instinct.load_state_dict(self.instinct.state_dict())
             self.apply(weight_init)
         self.freeze_instinct = load_instinct
@@ -291,5 +294,12 @@ def init_ppo(env):
     actor_critic = PolicyWithInstinct(
         env.observation_space.shape,
         env.action_space,
-        base_kwargs={'recurrent': False})
+        base_kwargs={'recurrent': False},
+        )
+    return actor_critic
+
+def init_default_ppo(env):
+    actor_critic = Policy(env.observation_space.shape,
+                          env.action_space,
+                          base_kwargs={'recurrent': False})
     return actor_critic
