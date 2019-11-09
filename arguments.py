@@ -217,6 +217,10 @@ def get_args():
         action='store_true',
         default=False,
         help='compute returns taking into account time limits')
+    parser.add_argument("--norm-vectors",
+                        action='store_true',
+                        default=False,
+                        help='Encase the environment into a wrapper that normalizes outputs of the said environment')
     args = parser.parse_args()
     args.cuda = False
 

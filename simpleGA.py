@@ -3,6 +3,7 @@ import itertools as itools
 import os
 import time
 from functools import partial
+from math import log
 from statistics import median
 
 import numpy as np
@@ -86,7 +87,8 @@ class EA:
                     init_ppo(
                         navigation_2d.Navigation2DEnv(
                             rm_nogo=args.rm_nogo, reduced_sampling=False
-                        )
+                        ),
+                        log(args.init_sigma)
                     )
                     if args.ppo
                     else init_model(din, dout, args)

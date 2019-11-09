@@ -17,9 +17,9 @@ class Flatten(nn.Module):
 
 
 class PolicyWithInstinct(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, load_instinct=False):
+    def __init__(self, obs_shape, action_space, init_log_std, base=None, base_kwargs=None, load_instinct=False):
         super(PolicyWithInstinct, self).__init__()
-        self.policy = Policy(obs_shape, action_space, base, base_kwargs)
+        self.policy = Policy(obs_shape, action_space, init_log_std, base, base_kwargs)
         self.instinct = ControllerInstinct(obs_shape[0], 100, action_space.shape[0])
 
         if load_instinct:
@@ -75,7 +75,7 @@ class PolicyWithInstinct(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space, init_log_std, base=None, base_kwargs=None):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -94,7 +94,7 @@ class Policy(nn.Module):
             self.dist = Categorical(self.base.output_size, num_outputs)
         elif action_space.__class__.__name__ == "Box":
             num_outputs = action_space.shape[0]
-            self.dist = DiagGaussian(self.base.output_size, num_outputs)
+            self.dist = DiagGaussian(self.base.output_size, num_outputs, init_log_std)
         elif action_space.__class__.__name__ == "MultiBinary":
             num_outputs = action_space.shape[0]
             self.dist = Bernoulli(self.base.output_size, num_outputs)
@@ -290,16 +290,18 @@ class MLPBase(NNBase):
 
         return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
 
-def init_ppo(env):
+def init_ppo(env, init_log_std):
     actor_critic = PolicyWithInstinct(
         env.observation_space.shape,
         env.action_space,
+        init_log_std=init_log_std,
         base_kwargs={'recurrent': False},
         )
     return actor_critic
 
-def init_default_ppo(env):
+def init_default_ppo(env, init_log_std):
     actor_critic = Policy(env.observation_space.shape,
                           env.action_space,
+                          init_log_std=init_log_std,
                           base_kwargs={'recurrent': False})
     return actor_critic
