@@ -79,9 +79,10 @@ class EA:
             saved_files = get_population_files(args.load_ga_dir)
 
         for n in range(pop_size + self.to_select):
-            if args.load_ga and n < pop_size:
-                start_model, start_lr = torch.load(saved_files[n])
-                print("Load individual from {}".format(saved_files[n]))
+            if args.load_ga:
+                file_idx = n % len(saved_files)
+                start_model, start_lr = torch.load(saved_files[file_idx])
+                print("Load individual from {}".format(saved_files[file_idx]))
             else:
                 start_model = (
                     init_ppo(
