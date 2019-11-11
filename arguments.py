@@ -223,6 +223,10 @@ def get_args():
         default=0,
         help="What's the starting generation. Used when restarting the search to avoid overriding stuff from the previous run.",
     )
+    parser.add_argument("--norm-vectors",
+                        action='store_true',
+                        default=False,
+                        help='Encase the environment into a wrapper that normalizes outputs of the said environment')
     args = parser.parse_args()
     args.cuda = False
 

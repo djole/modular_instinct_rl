@@ -186,7 +186,7 @@ class Navigation2DEnv(gym.Env):
 
         info_dict = {'reached' : reached,
             'cummulative_reward':self.cummulative_reward,
-            'task':self._task,
+            'goal':self._goal,
             'done':done
                      }
 

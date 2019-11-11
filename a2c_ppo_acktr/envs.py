@@ -81,7 +81,8 @@ def make_vec_envs(env_name,
                   log_dir,
                   device,
                   allow_early_resets,
-                  num_frame_stack=None):
+                  num_frame_stack=None,
+                  normalize=True):
     envs = [
         make_env(env_name, seed, i, log_dir, allow_early_resets)
         for i in range(num_processes)
@@ -92,7 +93,7 @@ def make_vec_envs(env_name,
     else:
         envs = DummyVecEnv(envs)
 
-    if len(envs.observation_space.shape) == 1:
+    if len(envs.observation_space.shape) == 1 and normalize:
         if gamma is None:
             envs = VecNormalize(envs, ret=False)
         else:

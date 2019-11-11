@@ -77,7 +77,7 @@ def episode_rollout(model, env, vis=False):
     while True:
         action, action_log_prob, debug_info = select_model_action(model, state)
         action = action.flatten()
-        state, reward, done, reached, _, _ = env.step(action)
+        state, reward, done, infos = env.step(action)
         cummulative_reward += reward
 
         rewards.append(reward)
@@ -95,7 +95,7 @@ def episode_rollout(model, env, vis=False):
 
     return (
         cummulative_reward,
-        reached,
+        infos['reached'],
         (rewards, action_log_probs),
         (action_records, path_records, debug_info_records, env._goal),
     )
@@ -118,7 +118,7 @@ def train_maml_like_ppo(
     device = torch.device("cpu")
 
     envs = make_vec_envs(ENV_NAME, seeding.create_seed(None), NUM_PROC,
-                         args.gamma, None, device, allow_early_resets=True)
+                         args.gamma, None, device, allow_early_resets=True, normalize=args.norm_vectors)
     raw_env = navigation_2d.unpeele_navigation_env(envs, 0)
 
     raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True)
@@ -153,7 +153,6 @@ def train_maml_like_ppo(
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
-    episode_rewards = deque(maxlen=10)
     fitnesses = []
 
     for j in range(num_updates):
@@ -173,10 +172,6 @@ def train_maml_like_ppo(
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
-
-            for info in infos:
-                if 'episode' in info.keys() and info['done']:
-                    episode_rewards.append(info['episode']['r'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor(
@@ -200,7 +195,10 @@ def train_maml_like_ppo(
 
         rollouts.after_update()
 
-        ob_rms = utils.get_vec_normalize(envs).ob_rms
+
+        ob_rms = utils.get_vec_normalize(envs)
+        if ob_rms is not None:
+            ob_rms = ob_rms.ob_rms
         fits, info, _ = evaluate(actor_critic, ob_rms, envs, NUM_PROC, device)
         fitnesses.append(fits)
     return fitnesses[-1], info['reached'], None

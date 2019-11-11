@@ -1,6 +1,6 @@
 from os import listdir, path
 from functools import partial
-from main_vis import run
+from visualisations.vis_boxplots import run
 import torch
 from model import ControllerCombinator
 from arguments import get_args
