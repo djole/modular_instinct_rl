@@ -121,7 +121,7 @@ def train_maml_like_ppo(
                          args.gamma, None, device, allow_early_resets=True, normalize=args.norm_vectors)
     raw_env = navigation_2d.unpeele_navigation_env(envs, 0)
 
-    raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True)
+    raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True, args.large_nogos)
     new_task = raw_env.sample_tasks(run_idx)
     raw_env.reset_task(new_task[0])
 

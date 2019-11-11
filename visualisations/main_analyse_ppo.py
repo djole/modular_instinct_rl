@@ -1,5 +1,6 @@
 from collections import deque
 from copy import deepcopy
+from math import log
 
 import torch
 from gym.envs.registration import register
@@ -41,12 +42,12 @@ def train_maml_like_ppo(
     )
     raw_env = unpeele_navigation_env(envs, 0)
 
-    raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True)
+    raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True, args.large_nogos)
     new_task = raw_env.sample_tasks(run_idx)
     raw_env.reset_task(new_task[0])
 
     ###### Load the saved model and the learning rate ######
-    actor_critic = init_ppo(envs)
+    actor_critic = init_ppo(envs, init_log_std=log(args.init_sigma))
     load_m = torch.load(
         "../trained_models/pulled_from_server/second_phase_instinct/2_deterministic_goals/large_zones_NOdistance2zones_PPO/individual_999.pt"
     )

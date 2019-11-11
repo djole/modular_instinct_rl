@@ -15,6 +15,11 @@ HORIZON = 100
 
 START = [0.0, 0.0]
 
+SMALL_NOGO_UPPER = 0.3
+SMALL_NOGO_LOWER = 0.2
+LARGE_NOGO_UPPER = 0.4
+LARGE_NOGO_LOWER = 0.05
+
 
 def dist_2_nogo(x, y):
     dist_fst = sqrt(pow(x - 0.25, 2) + pow(y - 0.25, 2))
@@ -25,12 +30,12 @@ def dist_2_nogo(x, y):
     return min_dist
 
 
-def is_nogo(x, y):
+def is_nogo(x, y, low, up):
     """Check if agent is in the nogo zone"""
-    fst_square = (0.05 < x < 0.4) and (0.05 < y < 0.4)
-    snd_square = (-0.4 < x < -0.05) and (0.05 < y < 0.4)
-    trd_square = (0.05 < x < 0.4) and (-0.4 < y < -0.05)
-    frt_square = (-0.4 < x < -0.05) and (-0.4 < y < -0.05)
+    fst_square = (low < x < up) and (low < y < up)
+    snd_square = (-up < x < -low) and (low < y < up)
+    trd_square = (low < x < up) and (-up < y < -low)
+    frt_square = (-up < x < -low) and (-up < y < -low)
     if fst_square or snd_square or trd_square or frt_square:
         return True
     return False
@@ -62,7 +67,7 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=True):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=True, nogo_large=False):
         super(Navigation2DEnv, self).__init__()
 
         self.observation_space = spaces.Box(
@@ -87,11 +92,20 @@ class Navigation2DEnv(gym.Env):
         self.rm_dist_to_nogo = rm_dist_to_nogo
 
         self.task_sequence = [[0.35, 0.45],[-0.45, -0.23]]
+        # Values that define the boundaries of no-go zones
+        self.nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
+        self.nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
+    # for info in infos:
+    #    if 'episode' in info.keys() and info['done']:
+    #        episode_rewards.append(info['episode']['r'])
 
-    def set_arguments(self, rm_nogo, reduced_sampling, rm_dist_to_nogo):
+    def set_arguments(self, rm_nogo, reduced_sampling, rm_dist_to_nogo, nogo_large):
         self.rm_nogo = rm_nogo
         self.reduced_sampling = reduced_sampling
         self.rm_dist_to_nogo = rm_dist_to_nogo
+        # Values that define the boundaries of no-go zones
+        self.nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
+        self.nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
 
     def _sample_ring_task(self):
         radius = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
@@ -102,14 +116,14 @@ class Navigation2DEnv(gym.Env):
 
     def _sample_square_wth_nogo_zone(self):
         rand_x = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
-        if rand_x <= 0.4 and rand_x >= -0.4:
+        if rand_x <= self.nogo_upper and rand_x >= -self.nogo_upper:
             # If random x could be in the no-go zone
             # Sample randomly from four slices
             dart = self.np_random.uniform(0.0, 1.0, size=(1, 1))[0][0]
             if dart <= 0.5:
-                rand_y = self.np_random.uniform(-0.5, -0.4, size=(1, 1))[0][0]
+                rand_y = self.np_random.uniform(-0.5, -self.nogo_upper, size=(1, 1))[0][0]
             elif dart > 0.5:
-                rand_y = self.np_random.uniform(0.4, 0.5, size=(1, 1))[0][0]
+                rand_y = self.np_random.uniform(self.nogo_upper, 0.5, size=(1, 1))[0][0]
         else:
             rand_y = self.np_random.uniform(-0.5, 0.5, size=(1, 1))[0][0]
 
@@ -166,7 +180,7 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if not self.rm_nogo and is_nogo(self._state[0], self._state[1]):
+        if not self.rm_nogo and is_nogo(self._state[0], self._state[1], self.nogo_lower, self.nogo_upper):
             reward -= 10
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])

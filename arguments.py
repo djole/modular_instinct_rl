@@ -124,6 +124,12 @@ def get_args():
         help="if TRUE, the supported environment will not have no-go zones",
     )
     parser.add_argument(
+        '--large-nogos',
+        action='store_true',
+        default=False,
+        help='if raised, the off-limit zones will be large and the goals will be sampled on the outside of the nogo zones',
+    )
+    parser.add_argument(
         "--rm-exploration-fit",
         action="store_true",
         default=False,
@@ -203,30 +209,36 @@ def get_args():
         help="max norm of gradients (default: 0.5)",
     )
     parser.add_argument(
-        '--use-gae',
-        action='store_true',
+        "--use-gae",
+        action="store_true",
         default=False,
-        help='use generalized advantage estimation')
+        help="use generalized advantage estimation",
+    )
     parser.add_argument(
-        '--gae-lambda',
+        "--gae-lambda",
         type=float,
         default=0.95,
-        help='gae lambda parameter (default: 0.95)')
+        help="gae lambda parameter (default: 0.95)",
+    )
     parser.add_argument(
-        '--use-proper-time-limits',
-        action='store_true',
+        "--use-proper-time-limits",
+        action="store_true",
         default=False,
-        help='compute returns taking into account time limits')
+        help="compute returns taking into account time limits",
+    )
     parser.add_argument(
         "--start-gen-idx",
         type=positive_nonzero_int,
         default=0,
         help="What's the starting generation. Used when restarting the search to avoid overriding stuff from the previous run.",
     )
-    parser.add_argument("--norm-vectors",
-                        action='store_true',
-                        default=False,
-                        help='Encase the environment into a wrapper that normalizes outputs of the said environment')
+    parser.add_argument(
+        "--norm-vectors",
+        action="store_true",
+        default=False,
+        help="Encase the environment into a wrapper that normalizes outputs of the said environment",
+    )
+
     args = parser.parse_args()
     args.cuda = False
 
