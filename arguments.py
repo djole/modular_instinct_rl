@@ -217,6 +217,12 @@ def get_args():
         action='store_true',
         default=False,
         help='compute returns taking into account time limits')
+    parser.add_argument(
+        "--start-gen-idx",
+        type=positive_nonzero_int,
+        default=0,
+        help="What's the starting generation. Used when restarting the search to avoid overriding stuff from the previous run.",
+    )
     args = parser.parse_args()
     args.cuda = False
 
