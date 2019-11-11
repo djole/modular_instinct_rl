@@ -8,7 +8,6 @@ trained_models/*
 .virtual/
 .vscode/
 .idea
-scrap.py
 __pycache__/
 plots
 *.pyc
