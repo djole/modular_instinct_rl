@@ -254,7 +254,7 @@ def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=F
 
     solver = EA(args, device, pop_size, elite_prop=elite_prop, din=din, dout=dout)
     fitness_list = [0 for _ in range(pop_size)]
-    for iteration in range(1000):
+    for iteration in range(args.start_gen_idx, 1000):
         start_time = time.time()
         solutions = solver.ask()
         if args.debug or args.reduce_goals:
