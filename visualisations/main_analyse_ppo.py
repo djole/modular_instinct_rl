@@ -30,8 +30,6 @@ def train_maml_like_ppo(
 ):
     ###### Init boilerplate ######
     num_steps = num_episodes * 100
-    #torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
 
     torch.set_num_threads(1)
     device = torch.device("cpu")
@@ -81,13 +79,14 @@ def train_maml_like_ppo(
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
-    episode_rewards = deque(maxlen=10)
+    episode_rewards = deque(maxlen=2000)
     fitnesses = []
     episode_path_record = []
     episodes_info = []
 
     ###### Start the main training loop ######
     for j in range(num_updates):
+        episode_rewards.clear()
         episodes_info.clear()
         ###### Optionally, turn on the learning rate decay
         if use_linear_lr_decay:
@@ -180,6 +179,6 @@ if __name__ == "__main__":
     )
     print("start the train function")
     train_maml_like_ppo(args,
-        num_episodes=20, num_updates=6, run_idx=0, use_linear_lr_decay=False
+        num_episodes=20, num_updates=6, run_idx=1, use_linear_lr_decay=False
 
     )

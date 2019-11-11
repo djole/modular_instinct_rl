@@ -111,8 +111,6 @@ def train_maml_like_ppo(
         run_idx=0,):
 
     num_steps = num_episodes * 100
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
 
     torch.set_num_threads(1)
     device = torch.device("cpu")
