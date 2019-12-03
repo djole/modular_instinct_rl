@@ -40,10 +40,4 @@ def evaluate(actor_critic, ob_rms, eval_envs, num_processes,
 
         if done:
             eval_episode_rewards.append(infos[0]['cummulative_reward'])
-
-    eval_envs.close()
-
-    #print(" Evaluation using {} episodes: mean reward {:.5f}\n".format(
-    #    len(eval_episode_rewards), np.mean(eval_episode_rewards)))
-
-    return eval_episode_rewards[-1], infos[0], None
+    return eval_episode_rewards[-1], infos

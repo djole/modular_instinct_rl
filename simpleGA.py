@@ -17,6 +17,8 @@ from train_test_model import train_maml_like, train_maml_like_ppo
 # MAXTSK_CHLD = 10
 START_LEARNING_RATE = 7e-4
 
+from gym.envs.registration import register
+
 
 def get_population_files(load_ga_dir):
 
@@ -87,7 +89,7 @@ class EA:
                 start_model = (
                     init_ppo(
                         navigation_2d.Navigation2DEnv(
-                            rm_nogo=args.rm_nogo, reduced_sampling=False
+                            rm_nogo=args.rm_nogo, rm_dist_to_nogo=args.rm_dist_to_nogo, reduced_sampling=False
                         ),
                         log(args.init_sigma)
                     )
@@ -254,6 +256,19 @@ def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=F
     # torch.manual_seed(args.seed)
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
+
+
+    # Register the environment
+    register(
+        id='Navigation2d-v0',
+        entry_point='navigation_2d:Navigation2DEnv',
+        max_episode_steps=200,
+        reward_threshold=0.0,
+        kwargs={'rm_nogo': args.rm_nogo,
+                'reduced_sampling': args.reduce_goals,
+                'rm_dist_to_nogo': args.rm_dist_to_nogo,
+                'nogo_large': args.large_nogos}
+    )
 
     solver = EA(args, device, pop_size, elite_prop=elite_prop, din=din, dout=dout)
     fitness_list = [0 for _ in range(pop_size)]

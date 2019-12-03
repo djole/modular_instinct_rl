@@ -67,11 +67,12 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=True, nogo_large=False):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=False, nogo_large=False):
         super(Navigation2DEnv, self).__init__()
 
+        obs_shape = (2,) if rm_dist_to_nogo else (3,)
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(2,), dtype=np.float32
+            low=-np.inf, high=np.inf, shape=obs_shape, dtype=np.float32
         )
         self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
 
@@ -98,14 +99,6 @@ class Navigation2DEnv(gym.Env):
     # for info in infos:
     #    if 'episode' in info.keys() and info['done']:
     #        episode_rewards.append(info['episode']['r'])
-
-    def set_arguments(self, rm_nogo, reduced_sampling, rm_dist_to_nogo, nogo_large):
-        self.rm_nogo = rm_nogo
-        self.reduced_sampling = reduced_sampling
-        self.rm_dist_to_nogo = rm_dist_to_nogo
-        # Values that define the boundaries of no-go zones
-        self.nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
-        self.nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
 
     def _sample_ring_task(self):
         radius = self.np_random.uniform(0.3, 0.5, size=(1, 1))[0][0]
@@ -136,6 +129,7 @@ class Navigation2DEnv(gym.Env):
         return goals
 
     def seed(self, seed=None):
+        seed = None
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
@@ -156,13 +150,15 @@ class Navigation2DEnv(gym.Env):
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()
+        self.episode_x_path.append(self._state[0])
+        self.episode_y_path.append(self._state[1])
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
 
         if self.rm_dist_to_nogo:
             state_info = self._state
         else:
-            state_info = (self._state, d2ng)
+            state_info = np.append(self._state, [d2ng])
 
         return state_info
 
@@ -196,13 +192,15 @@ class Navigation2DEnv(gym.Env):
         if self.rm_dist_to_nogo:
             state_info = self._state
         else:
-            state_info = (self._state, d2ng)
+            state_info = np.append(self._state, [d2ng])
 
         info_dict = {'reached' : reached,
             'cummulative_reward':self.cummulative_reward,
             'goal':self._goal,
             'done':done
                      }
+        if done:
+            info_dict['path'] = list(zip(self.episode_x_path, self.episode_y_path))
 
         return (
             state_info,
@@ -214,5 +212,5 @@ class Navigation2DEnv(gym.Env):
     def render_episode(self):
         plt.figure()
         plt.plot(self.episode_x_path, self.episode_y_path)
-        plt.plot(self._goal[0], self._goal[1], "r*")
+        plt.plot(self._goal[0], self._goal[0], "r*")
         plt.show()

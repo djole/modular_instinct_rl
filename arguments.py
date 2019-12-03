@@ -124,6 +124,12 @@ def get_args():
         help="if TRUE, the supported environment will not have no-go zones",
     )
     parser.add_argument(
+        "--rm-dist-to-nogo",
+        action="store_true",
+        default=False,
+        help="if TRUE, the supported environment will not give the distance to nogo zones",
+    )
+    parser.add_argument(
         '--large-nogos',
         action='store_true',
         default=False,

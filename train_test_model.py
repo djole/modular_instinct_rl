@@ -14,19 +14,11 @@ from a2c_ppo_acktr.storage import RolloutStorage
 from a2c_ppo_acktr import utils
 from a2c_ppo_acktr.evaluation import evaluate
 from a2c_ppo_acktr.envs import make_vec_envs
-from gym.envs.registration import register
 
 EPS = np.finfo(np.float32).eps.item()
 
 ENV_NAME = "Navigation2d-v0"
 NUM_PROC = 1
-
-register(
-    id='Navigation2d-v0',
-    entry_point='navigation_2d:Navigation2DEnv',
-    max_episode_steps=200,
-    reward_threshold=0.0,
-)
 
 def select_model_action(model, state):
     state_ = state
@@ -119,7 +111,7 @@ def train_maml_like_ppo(
                          args.gamma, None, device, allow_early_resets=True, normalize=args.norm_vectors)
     raw_env = navigation_2d.unpeele_navigation_env(envs, 0)
 
-    raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True, args.large_nogos)
+    #raw_env.set_arguments(args.rm_nogo, args.reduce_goals, True, args.large_nogos)
     new_task = raw_env.sample_tasks(run_idx)
     raw_env.reset_task(new_task[0])
 
@@ -160,7 +152,7 @@ def train_maml_like_ppo(
         #    utils.update_linear_schedule(
         #        agent.optimizer, j, num_updates,
         #        agent.optimizer.lr if args.algo == "acktr" else args.lr)
-
+        min_c_rew = float("inf")
         for step in range(num_steps):
             # Sample actions
             with torch.no_grad():
@@ -171,6 +163,10 @@ def train_maml_like_ppo(
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
 
+            if done[0]:
+                c_rew = infos[0]["cummulative_reward"]
+                if c_rew < min_c_rew:
+                    min_c_rew = c_rew
             # If done then clean the history of observations.
             masks = torch.FloatTensor(
                 [[0.0] if done_ else [1.0] for done_ in done])
@@ -197,9 +193,9 @@ def train_maml_like_ppo(
         ob_rms = utils.get_vec_normalize(envs)
         if ob_rms is not None:
             ob_rms = ob_rms.ob_rms
-        fits, info, _ = evaluate(actor_critic, ob_rms, envs, NUM_PROC, device)
+        fits, info = evaluate(actor_critic, ob_rms, envs, NUM_PROC, device)
         fitnesses.append(fits)
-    return fitnesses[-1], info['reached'], None
+    return fitnesses[-1], info[0]['reached'], None
 
 def train_maml_like(
     init_model,
