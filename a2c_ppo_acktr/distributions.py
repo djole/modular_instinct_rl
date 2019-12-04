@@ -76,10 +76,11 @@ class DiagGaussian(nn.Module):
                                constant_(x, 0))
 
         self.fc_mean = init_(nn.Linear(num_inputs, num_outputs))
+        self.tanh = nn.Tanh()
         self.logstd = AddBias(torch.zeros(num_outputs) + init_log_std)
 
     def forward(self, x):
-        action_mean = self.fc_mean(x)
+        action_mean = self.tanh(self.fc_mean(x)) * 0.1
 
         #  An ugly hack for my KFAC implementation.
         zeros = torch.zeros(action_mean.size())

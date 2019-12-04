@@ -72,8 +72,6 @@ class PolicyWithInstinct(nn.Module):
     def evaluate_actions(self, inputs, rnn_hxs, masks, action):
         return self.policy.evaluate_actions(inputs, rnn_hxs, masks, action)
 
-
-
 class Policy(nn.Module):
     def __init__(self, obs_shape, action_space, init_log_std, base=None, base_kwargs=None):
         super(Policy, self).__init__()
