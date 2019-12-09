@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from gym import spaces
 from gym.utils import seeding
+import numpy as np
 
 from baselines.common.vec_env.shmem_vec_env import ShmemVecEnv
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
@@ -39,6 +40,45 @@ def is_nogo(x, y, low, up):
     if fst_square or snd_square or trd_square or frt_square:
         return True
     return False
+
+def intersection(p1, p2, q1, q2):
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+    q1 = np.array(q1)
+    q2 = np.array(q2)
+
+    b = q1 - p1
+    A = np.array([p2-p1, q1-q2]).transpose()
+    try:
+        segments = np.linalg.solve(A, b)
+    except np.linalg.LinAlgError:
+        return False
+    return np.logical_and(segments >= 0, segments <= 1.0).all()
+
+def is_stepping_over_square(p1, p2, sq_p1, sq_p3):
+    sq_p2 = (sq_p1[0], sq_p3[1])
+    sq_p4 = (sq_p1[1], sq_p3[0])
+
+    int1 = intersection(p1, p2, sq_p1, sq_p2)
+    int2 = intersection(p1, p2, sq_p2, sq_p3)
+    int3 = intersection(p1, p2, sq_p3, sq_p4)
+    int4 = intersection(p1, p2, sq_p4, sq_p1)
+    return int1 or int2 or int3 or int4
+
+def is_crossing_nogo(prev_point, point, low, high):
+    current_is_nogo = is_nogo(point[0], point[1], low, high)
+    if current_is_nogo:
+        return True
+    if is_nogo(prev_point[0], prev_point[1], low, high) and not current_is_nogo:
+        return False
+    else:
+        # Check squares
+        fst = is_stepping_over_square(prev_point, point, (low, low), (high, high))
+        snd = is_stepping_over_square(prev_point, point, (-low, low), (-high, high))
+        trd = is_stepping_over_square(prev_point, point, (low, -low), (high, -high))
+        fourth = is_stepping_over_square(prev_point, point, (-low, -low), (-high, -high))
+        return fst or snd or trd or fourth
+
 
 def unpeele_navigation_env(env, envIdx):
     if isinstance(env, Navigation2DEnv):
@@ -79,6 +119,7 @@ class Navigation2DEnv(gym.Env):
         self._task = task
         self._goal = task.get("goal", np.zeros(2, dtype=np.float32))
         self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
+        self._previous_state = np.array(START)
         self.seed()
         self.horizon = HORIZON
         self.cummulative_reward = 0
@@ -163,6 +204,8 @@ class Navigation2DEnv(gym.Env):
         return state_info
 
     def step(self, action):
+
+        np.copyto(self._previous_state, self._state)
         action = np.clip(action, -0.1, 0.1)
         if isinstance(action, torch.Tensor):
             action = action.detach().numpy()
@@ -176,7 +219,7 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if not self.rm_nogo and is_nogo(self._state[0], self._state[1], self.nogo_lower, self.nogo_upper):
+        if not self.rm_nogo and is_crossing_nogo(self._previous_state, self._state, self.nogo_lower, self.nogo_upper):
             reward -= 10
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
