@@ -125,6 +125,8 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path = []
         self.episode_y_path = []
 
+        self.offending_steps = []
+
         # An option to remove no-go zones for baseline purposes
         self.rm_nogo = rm_nogo
         # An option that cycles only through two goals
@@ -190,6 +192,7 @@ class Navigation2DEnv(gym.Env):
         self.cummulative_reward = 0
         self.episode_x_path.clear()
         self.episode_y_path.clear()
+        self.offending_steps.clear()
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
@@ -220,6 +223,7 @@ class Navigation2DEnv(gym.Env):
         # If yes, punish the agent.
         if not self.rm_nogo and is_crossing_nogo(self._previous_state, self._state, self.nogo_lower, self.nogo_upper):
             reward -= 10
+            self.offending_steps.append((self._previous_state.copy(), self._state.copy()))
 
         d2ng = dist_2_nogo(self._state[0], self._state[1])
 
@@ -243,6 +247,7 @@ class Navigation2DEnv(gym.Env):
                      }
         if done:
             info_dict['path'] = list(zip(self.episode_x_path.copy(), self.episode_y_path.copy()))
+            info_dict['offending'] = list(self.offending_steps)
 
         return (
             state_info,
