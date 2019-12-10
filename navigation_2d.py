@@ -57,7 +57,7 @@ def intersection(p1, p2, q1, q2):
 
 def is_stepping_over_square(p1, p2, sq_p1, sq_p3):
     sq_p2 = (sq_p1[0], sq_p3[1])
-    sq_p4 = (sq_p1[1], sq_p3[0])
+    sq_p4 = (sq_p3[0], sq_p1[1])
 
     int1 = intersection(p1, p2, sq_p1, sq_p2)
     int2 = intersection(p1, p2, sq_p2, sq_p3)
@@ -78,7 +78,6 @@ def is_crossing_nogo(prev_point, point, low, high):
         trd = is_stepping_over_square(prev_point, point, (low, -low), (high, -high))
         fourth = is_stepping_over_square(prev_point, point, (-low, -low), (-high, -high))
         return fst or snd or trd or fourth
-
 
 def unpeele_navigation_env(env, envIdx):
     if isinstance(env, Navigation2DEnv):
@@ -243,7 +242,7 @@ class Navigation2DEnv(gym.Env):
             'done':done
                      }
         if done:
-            info_dict['path'] = list(zip(self.episode_x_path, self.episode_y_path))
+            info_dict['path'] = list(zip(self.episode_x_path.copy(), self.episode_y_path.copy()))
 
         return (
             state_info,
