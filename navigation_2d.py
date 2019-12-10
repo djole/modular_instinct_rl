@@ -134,7 +134,7 @@ class Navigation2DEnv(gym.Env):
         # An option that removes the information from state about the distance to the center of a nogo zone
         self.rm_dist_to_nogo = rm_dist_to_nogo
 
-        self.task_sequence = [[0.35, 0.45],[-0.45, -0.23]]
+        self.task_sequence = [[0.35, 0.45],[-0.45, -0.23], [-0.4, 0.42], [0.45, -0.35]]
         # Values that define the boundaries of no-go zones
         self.nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
         self.nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
