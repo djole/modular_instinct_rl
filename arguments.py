@@ -130,6 +130,12 @@ def get_args():
         help="if TRUE, the supported environment will not give the distance to nogo zones",
     )
     parser.add_argument(
+        "--num-reduced-samples",
+        default=2,
+        type=positive_nonzero_int,
+        help='Defined how many steps in the cycle through predetermined goals',
+    )
+    parser.add_argument(
         '--large-nogos',
         action='store_true',
         default=False,

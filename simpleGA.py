@@ -276,7 +276,7 @@ def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=F
         start_time = time.time()
         solutions = solver.ask()
         if args.debug or args.reduce_goals:
-            num_env_samples = 2
+            num_env_samples = args.num_reduced_samples
         else:
             num_env_samples = 20
 
