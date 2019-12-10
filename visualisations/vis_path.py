@@ -14,7 +14,10 @@ NUM_EPISODES = 40
 NUM_UPDATES = 1
 NUM_EXP = 5
 MODEL_PATH = "./trained_models/pulled_from_server/20random_goals_instinct_module_danger_zone/larger_pop_smaller_punishment/individual_175.pt"
-
+SMALL_NOGO_UPPER = 0.3
+SMALL_NOGO_LOWER = 0.2
+LARGE_NOGO_UPPER = 0.4
+LARGE_NOGO_LOWER = 0.05
 
 def vis_instinct_action(model):
     input_xs = get_mesh()
@@ -45,26 +48,42 @@ def vis_instinct_action(model):
     plt.show()
 
 
-def vis_path(vis, saveidx=None, slice=None):
+def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None, offending=None):
     """ Visualize the path """
+    nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
+    nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
+    nogo_size = nogo_upper - nogo_lower
     plt.figure()
     axis = plt.gca()
+    # Plot the exploration paths
     for v in vis:
-        path_rec = v[1]
-        goal = v[3]
+        path_rec = v[0]
+        goal = v[1]
 
 
         if slice is None:
             pth = list(zip(*path_rec))
         else:
             pth = list(zip(*path_rec[slice - 1:slice]))
-        axis.plot(*pth, color="green")
+        axis.plot(*pth, "go")
         axis.scatter(*goal, color="red", s=250)
 
-    axis.add_patch(plt.Rectangle((0.05, 0.05), 0.35, 0.35, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.4, 0.05), 0.35, 0.35, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((0.05, -0.4), 0.35, 0.35, fc="r", alpha=0.1))
-    axis.add_patch(plt.Rectangle((-0.4, -0.4), 0.35, 0.35, fc="r", alpha=0.1))
+    # Plot the offending paths
+    if offending is not None:
+        for st in offending:
+            stz = list(zip(*st))
+            axis.plot(stz[0], stz[1], color='orange')
+
+
+    # Plot the evaluation path
+    if eval_path_rec is not None:
+        eval_path_rec = list(zip(*eval_path_rec))
+        axis.plot(*eval_path_rec, color='purple')
+
+    axis.add_patch(plt.Rectangle((nogo_lower, nogo_lower), nogo_size, nogo_size, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-nogo_upper, nogo_lower), nogo_size, nogo_size, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((nogo_lower, -nogo_upper), nogo_size, nogo_size, fc="r", alpha=0.1))
+    axis.add_patch(plt.Rectangle((-nogo_upper, -nogo_upper), nogo_size, nogo_size, fc="r", alpha=0.1))
 
     axis.set_xlim(-0.5, 0.5)
     axis.set_ylim(-0.5, 0.5)
