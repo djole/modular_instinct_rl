@@ -14,6 +14,7 @@ from a2c_ppo_acktr.storage import RolloutStorage
 from a2c_ppo_acktr import utils
 from a2c_ppo_acktr.evaluation import evaluate
 from a2c_ppo_acktr.envs import make_vec_envs
+from gym.envs.registration import register
 
 EPS = np.finfo(np.float32).eps.item()
 
@@ -103,6 +104,23 @@ def train_maml_like_ppo(
         run_idx=0,):
 
     num_steps = num_episodes * 100
+    # Register the environment
+    try:
+        register(
+            id="Navigation2d-v0",
+            entry_point="navigation_2d:Navigation2DEnv",
+            max_episode_steps=200,
+            reward_threshold=0.0,
+            kwargs={
+                "rm_nogo": args.rm_nogo,
+                "reduced_sampling": args.reduce_goals,
+                "rm_dist_to_nogo": args.rm_dist_to_nogo,
+                "nogo_large": args.large_nogos,
+                "all_dist_to_nogo": args.all_dist_to_nogo,
+            },
+        )
+    except:
+        pass
 
     torch.set_num_threads(1)
     device = torch.device("cpu")

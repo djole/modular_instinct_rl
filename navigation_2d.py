@@ -22,13 +22,13 @@ LARGE_NOGO_UPPER = 0.4
 LARGE_NOGO_LOWER = 0.05
 
 
-def dist_2_nogo(x, y):
+def dist_2_nogo(x, y, all_dists=False):
     dist_fst = sqrt(pow(x - 0.25, 2) + pow(y - 0.25, 2))
     dist_snd = sqrt(pow(x + 0.25, 2) + pow(y - 0.25, 2))
     dist_trd = sqrt(pow(x - 0.25, 2) + pow(y + 0.25, 2))
     dist_frt = sqrt(pow(x + 0.25, 2) + pow(y + 0.25, 2))
     min_dist = min([dist_fst, dist_snd, dist_trd, dist_frt])
-    return min_dist
+    return [dist_fst, dist_snd, dist_trd, dist_frt] if all_dists else min_dist
 
 
 def is_nogo(x, y, low, up):
@@ -106,10 +106,12 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=False, nogo_large=False):
+    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=False, nogo_large=False, all_dist_to_nogo=False):
         super(Navigation2DEnv, self).__init__()
 
         obs_shape = (2,) if rm_dist_to_nogo else (3,)
+        if all_dist_to_nogo:
+            obs_shape = (6,)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=obs_shape, dtype=np.float32
         )
@@ -133,6 +135,7 @@ class Navigation2DEnv(gym.Env):
         self.reduced_sampling = reduced_sampling
         # An option that removes the information from state about the distance to the center of a nogo zone
         self.rm_dist_to_nogo = rm_dist_to_nogo
+        self.all_dist_to_nogo = all_dist_to_nogo
 
         self.task_sequence = [[0.35, 0.45],[-0.45, -0.23], [-0.4, 0.42], [0.45, -0.35]]
         # Values that define the boundaries of no-go zones
@@ -196,12 +199,12 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
-        d2ng = dist_2_nogo(self._state[0], self._state[1])
+        d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
 
         if self.rm_dist_to_nogo:
             state_info = self._state
         else:
-            state_info = np.append(self._state, [d2ng])
+            state_info = np.append(self._state, d2ng)
 
         return state_info
 
@@ -225,7 +228,7 @@ class Navigation2DEnv(gym.Env):
             reward -= 10
             self.offending_steps.append((self._previous_state.copy(), self._state.copy()))
 
-        d2ng = dist_2_nogo(self._state[0], self._state[1])
+        d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
 
         reached = (np.abs(delta_x) < 0.01) and (np.abs(delta_y) < 0.01)
         done = reached or self.horizon <= 0
@@ -238,7 +241,7 @@ class Navigation2DEnv(gym.Env):
         if self.rm_dist_to_nogo:
             state_info = self._state
         else:
-            state_info = np.append(self._state, [d2ng])
+            state_info = np.append(self._state, d2ng)
 
         info_dict = {'reached' : reached,
             'cummulative_reward':self.cummulative_reward,

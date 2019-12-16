@@ -130,6 +130,12 @@ def get_args():
         help="if TRUE, the supported environment will not give the distance to nogo zones",
     )
     parser.add_argument(
+        "--all-dist-to-nogo",
+        action="store_true",
+        default=False,
+        help="if TRUE, the supported environment will give all 4 distances to nogo zones",
+    )
+    parser.add_argument(
         "--num-reduced-samples",
         default=2,
         type=positive_nonzero_int,

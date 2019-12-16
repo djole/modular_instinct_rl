@@ -17,8 +17,6 @@ from train_test_model import train_maml_like, train_maml_like_ppo
 # MAXTSK_CHLD = 10
 START_LEARNING_RATE = 7e-4
 
-from gym.envs.registration import register
-
 
 def get_population_files(load_ga_dir):
 
@@ -89,9 +87,12 @@ class EA:
                 start_model = (
                     init_ppo(
                         navigation_2d.Navigation2DEnv(
-                            rm_nogo=args.rm_nogo, rm_dist_to_nogo=args.rm_dist_to_nogo, reduced_sampling=False
+                            rm_nogo=args.rm_nogo,
+                            rm_dist_to_nogo=args.rm_dist_to_nogo,
+                            reduced_sampling=False,
+                            all_dist_to_nogo=args.all_dist_to_nogo,
                         ),
-                        log(args.init_sigma)
+                        log(args.init_sigma),
                     )
                     if args.ppo
                     else init_model(din, dout, args)
@@ -201,9 +202,13 @@ class EA:
         torch.set_num_threads(1)
         # fits = [episode_rollout(individual.model, args, env, rollout_index=ri, adapt=args.ep_training) for ri in range(num_attempts)]
         fits = [
-            train_maml_like_ppo(individual.model, args, individual.learning_rate, run_idx=num_att)
+            train_maml_like_ppo(
+                individual.model, args, individual.learning_rate, run_idx=num_att
+            )
             if args.ppo
-            else train_maml_like(individual.model, args, individual.learning_rate, run_idx=num_att)
+            else train_maml_like(
+                individual.model, args, individual.learning_rate, run_idx=num_att
+            )
             for num_att in range(num_attempts)
         ]
         fits, reacheds, _ = list(zip(*fits))
@@ -257,18 +262,6 @@ def rollout(args, din, dout, pool, device, pop_size=140, elite_prop=0.1, debug=F
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-
-    # Register the environment
-    register(
-        id='Navigation2d-v0',
-        entry_point='navigation_2d:Navigation2DEnv',
-        max_episode_steps=200,
-        reward_threshold=0.0,
-        kwargs={'rm_nogo': args.rm_nogo,
-                'reduced_sampling': args.reduce_goals,
-                'rm_dist_to_nogo': args.rm_dist_to_nogo,
-                'nogo_large': args.large_nogos}
-    )
 
     solver = EA(args, device, pop_size, elite_prop=elite_prop, din=din, dout=dout)
     fitness_list = [0 for _ in range(pop_size)]
