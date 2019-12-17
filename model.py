@@ -59,7 +59,7 @@ class ControllerInstinct(torch.nn.Module):
 
     def forward(self, x):
         inter = self.controller(x)
-        means = self.last_layer(inter)
+        means = self.last_layer(inter) * 0.1
         str_sig = self.strength_signal(inter)
         return means, str_sig
 
