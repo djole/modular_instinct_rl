@@ -15,7 +15,7 @@ def main():
     if args.debug:
         rollout(args, D_IN, D_OUT, pool, device, pop_size=5, elite_prop=0.2)
     else:
-        rollout(args, D_IN, D_OUT, pool, device, pop_size=(args.num_proc * 4))
+        rollout(args, D_IN, D_OUT, pool, device, pop_size=(args.num_proc * 8))
 
 
 if __name__ == "__main__":
