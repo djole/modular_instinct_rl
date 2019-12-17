@@ -7,7 +7,7 @@ import torch
 import navigation_2d
 from arguments import get_args
 from model import ControllerCombinator, ControllerMonolithic
-from train_test_model import train_maml_like, select_model_action
+from train_test_model import train_maml_like
 from navigation_2d import dist_2_nogo
 
 NUM_EPISODES = 40
@@ -21,7 +21,13 @@ LARGE_NOGO_LOWER = 0.05
 
 def vis_instinct_action(model):
     input_xs = get_mesh()
-    z = [select_model_action(model, (x, dist_2_nogo(*x)))[2] for x in input_xs]
+    select_model_action = lambda modl, inputs: modl(inputs)
+    amplify_action = lambda instinct_action, control: instinct_action * (1 - control)
+    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1]))], dtype=torch.float32)
+
+    z = [
+        amplify_action(*select_model_action(model, glue_input(x))).flatten() for x in input_xs
+    ]
     plt.figure()
     axis = plt.gca()
     # x, y = input_xs.transpose()[0], input_xs.transpose()[1]
@@ -85,8 +91,8 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
     axis.add_patch(plt.Rectangle((nogo_lower, -nogo_upper), nogo_size, nogo_size, fc="r", alpha=0.1))
     axis.add_patch(plt.Rectangle((-nogo_upper, -nogo_upper), nogo_size, nogo_size, fc="r", alpha=0.1))
 
-    axis.set_xlim(-0.5, 0.5)
-    axis.set_ylim(-0.5, 0.5)
+    axis.set_xlim(-0.75, 0.75)
+    axis.set_ylim(-0.75, 0.75)
     if saveidx is None:
         plt.show()
     else:
@@ -104,10 +110,12 @@ def get_mesh():
     return input_xy.transpose()
 
 
-def vis_heatmap(model):
+def vis_heatmap(model, dimension=1):
     input_xs = get_mesh()
+    select_model_action = lambda modl, inputs: modl(inputs)
+    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1]))], dtype=torch.float32)
     z = [
-        select_model_action(model, x)[2].mean().item() for x in input_xs
+        select_model_action(model, glue_input(x))[1].mean().item() for x in input_xs
     ]
     plt.figure()
     axis = plt.gca()
