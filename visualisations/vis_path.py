@@ -19,11 +19,11 @@ SMALL_NOGO_LOWER = 0.2
 LARGE_NOGO_UPPER = 0.4
 LARGE_NOGO_LOWER = 0.05
 
-def vis_instinct_action(model):
+def vis_instinct_action(model, alldists=False):
     input_xs = get_mesh()
     select_model_action = lambda modl, inputs: modl(inputs)
     amplify_action = lambda instinct_action, control: instinct_action * (1 - control)
-    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1]))], dtype=torch.float32)
+    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1], all_dists=alldists))], dtype=torch.float32)
 
     z = [
         amplify_action(*select_model_action(model, glue_input(x))).flatten() for x in input_xs
@@ -110,10 +110,10 @@ def get_mesh():
     return input_xy.transpose()
 
 
-def vis_heatmap(model, dimension=1):
+def vis_heatmap(model, alldists=False):
     input_xs = get_mesh()
     select_model_action = lambda modl, inputs: modl(inputs)
-    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1]))], dtype=torch.float32)
+    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1], all_dists=alldists))], dtype=torch.float32)
     z = [
         select_model_action(model, glue_input(x))[1].mean().item() for x in input_xs
     ]
