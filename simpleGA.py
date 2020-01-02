@@ -88,7 +88,7 @@ class EA:
                     init_ppo(
                         navigation_2d.Navigation2DEnv(
                             rm_nogo=args.rm_nogo,
-                            rm_dist_to_nogo=args.rm_dist_to_nogo,
+                            dist_to_nogo=args.dist_to_nogo,
                             reduced_sampling=False,
                             all_dist_to_nogo=args.all_dist_to_nogo,
                         ),

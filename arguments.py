@@ -124,10 +124,11 @@ def get_args():
         help="if TRUE, the supported environment will not have no-go zones",
     )
     parser.add_argument(
-        "--rm-dist-to-nogo",
-        action="store_true",
-        default=False,
-        help="if TRUE, the supported environment will not give the distance to nogo zones",
+        "--dist-to-nogo",
+        default='dist',
+        choices=['lidars', 'none', 'dist'],
+        help="Determines the type of 'no-go' zone observation: 1D distance to the closest ('dist'),\
+             8D bounded lidar detection ('lidars'), or 'none'",
     )
     parser.add_argument(
         "--all-dist-to-nogo",

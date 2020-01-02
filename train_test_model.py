@@ -114,7 +114,7 @@ def train_maml_like_ppo(
             kwargs={
                 "rm_nogo": args.rm_nogo,
                 "reduced_sampling": args.reduce_goals,
-                "rm_dist_to_nogo": args.rm_dist_to_nogo,
+                "dist_to_nogo": args.dist_to_nogo,
                 "nogo_large": args.large_nogos,
                 "all_dist_to_nogo": args.all_dist_to_nogo,
             },

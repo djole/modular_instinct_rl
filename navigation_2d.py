@@ -15,6 +15,11 @@ from math import pi, cos, sin, pow, sqrt
 HORIZON = 100
 
 START = [0.0, 0.0]
+STEP_SIZE = 0.1
+
+LIDARS_KEY = "lidars"
+DIST_KEY = "dist"
+NONE_KEY = "none"
 
 SMALL_NOGO_UPPER = 0.3
 SMALL_NOGO_LOWER = 0.2
@@ -41,43 +46,75 @@ def is_nogo(x, y, low, up):
         return True
     return False
 
+
 def intersection(p1, p2, q1, q2):
+    # Return whether one line is crossing the other and at which percentage of the length
     p1 = np.array(p1)
     p2 = np.array(p2)
     q1 = np.array(q1)
     q2 = np.array(q2)
 
     b = q1 - p1
-    A = np.array([p2-p1, q1-q2]).transpose()
+    A = np.array([p2 - p1, q1 - q2]).transpose()
     try:
         segments = np.linalg.solve(A, b)
     except np.linalg.LinAlgError:
-        return False
-    return np.logical_and(segments >= 0, segments <= 1.0).all()
+        return (False, None)
+    is_cross = np.logical_and(segments >= 0, segments <= 1.0).all()
+    if is_cross:
+        return (True, segments)
+    else:
+        return (False, None)
+
 
 def is_stepping_over_square(p1, p2, sq_p1, sq_p3):
     sq_p2 = (sq_p1[0], sq_p3[1])
     sq_p4 = (sq_p3[0], sq_p1[1])
+    c_segs = [None, None, None, None]
+    int1, c_segs[0] = intersection(p1, p2, sq_p1, sq_p2)
+    int2, c_segs[1] = intersection(p1, p2, sq_p2, sq_p3)
+    int3, c_segs[2] = intersection(p1, p2, sq_p3, sq_p4)
+    int4, c_segs[3] = intersection(p1, p2, sq_p4, sq_p1)
+    return (int1 or int2 or int3 or int4), c_segs
 
-    int1 = intersection(p1, p2, sq_p1, sq_p2)
-    int2 = intersection(p1, p2, sq_p2, sq_p3)
-    int3 = intersection(p1, p2, sq_p3, sq_p4)
-    int4 = intersection(p1, p2, sq_p4, sq_p1)
-    return int1 or int2 or int3 or int4
 
-def is_crossing_nogo(prev_point, point, low, high):
+def is_crossing_nogo(prev_point, point, low, high, check_trajectory=True):
     current_is_nogo = is_nogo(point[0], point[1], low, high)
-    if current_is_nogo:
-        return True
-    if is_nogo(prev_point[0], prev_point[1], low, high) and not current_is_nogo:
-        return False
+    prev_is_nogo = is_nogo(prev_point[0], prev_point[1], low, high)
+    if check_trajectory and current_is_nogo:
+        return (True, 0)
+    if check_trajectory and (prev_is_nogo and not current_is_nogo):
+        return (False, None)
     else:
+        # Check if the agent is in nogo
+        if prev_is_nogo and not check_trajectory:
+            return (True, 0)
         # Check squares
-        fst = is_stepping_over_square(prev_point, point, (low, low), (high, high))
-        snd = is_stepping_over_square(prev_point, point, (-low, low), (-high, high))
-        trd = is_stepping_over_square(prev_point, point, (low, -low), (high, -high))
-        fourth = is_stepping_over_square(prev_point, point, (-low, -low), (-high, -high))
-        return fst or snd or trd or fourth
+        c_segs = []
+        fst, segs = is_stepping_over_square(prev_point, point, (low, low), (high, high))
+        c_segs.extend(segs)
+        snd, segs = is_stepping_over_square(
+            prev_point, point, (-low, low), (-high, high)
+        )
+        c_segs.extend(segs)
+        trd, segs = is_stepping_over_square(
+            prev_point, point, (low, -low), (high, -high)
+        )
+        c_segs.extend(segs)
+        fourth, segs = is_stepping_over_square(
+            prev_point, point, (-low, -low), (-high, -high)
+        )
+        c_segs.extend(segs)
+
+        # Check for the closest intersection segment of the (p1, p2) line cast
+        min_seg = None
+        for s in c_segs:
+            if min_seg is None and s is not None:
+                min_seg = s[0]
+            elif s is not None and s[0] < min_seg:
+                min_seg = s[0]
+        return (fst or snd or trd or fourth), min_seg
+
 
 def unpeele_navigation_env(env, envIdx):
     if isinstance(env, Navigation2DEnv):
@@ -90,6 +127,7 @@ def unpeele_navigation_env(env, envIdx):
         except:
             env = env.venv
         return unpeele_navigation_env(env, envIdx)
+
 
 class Navigation2DEnv(gym.Env):
     """2D navigation problems, as described in [1]. The code is adapted from 
@@ -106,16 +144,39 @@ class Navigation2DEnv(gym.Env):
         (https://arxiv.org/abs/1703.03400)
     """
 
-    def __init__(self, task={}, rm_nogo=False, reduced_sampling=False, rm_dist_to_nogo=False, nogo_large=False, all_dist_to_nogo=False):
+    def __init__(
+        self,
+        task={},
+        rm_nogo=False,
+        reduced_sampling=False,
+        dist_to_nogo=None,
+        nogo_large=False,
+        all_dist_to_nogo=False,
+    ):
         super(Navigation2DEnv, self).__init__()
 
-        obs_shape = (2,) if rm_dist_to_nogo else (3,)
+        # Observation shape depends on the type of input:
+        # 'lidars' is 8 lidar rays detecting 'no-go' zones,
+        # 'dist' is one-dimensional distance to the closest 'no-go' zone,
+        # and None is a blind agent perceptualy unaware of the 'no-go' zones.
+        obs_shape = None
+        if dist_to_nogo == LIDARS_KEY:
+            obs_shape = (10,)
+        elif dist_to_nogo == DIST_KEY:
+            obs_shape = (3,)
+        elif dist_to_nogo == NONE_KEY:
+            obs_shape = (2,)
+        else:
+            raise ValueError("dist_to_nogo is either None, 'lidars', or 'dist'")
+
         if all_dist_to_nogo:
             obs_shape = (6,)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=obs_shape, dtype=np.float32
         )
-        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(2,), dtype=np.float32)
+        self.action_space = spaces.Box(
+            low=-STEP_SIZE, high=STEP_SIZE, shape=(2,), dtype=np.float32
+        )
 
         self._task = task
         self._goal = task.get("goal", np.zeros(2, dtype=np.float32))
@@ -134,13 +195,19 @@ class Navigation2DEnv(gym.Env):
         # An option that cycles only through two goals
         self.reduced_sampling = reduced_sampling
         # An option that removes the information from state about the distance to the center of a nogo zone
-        self.rm_dist_to_nogo = rm_dist_to_nogo
+        self.dist_to_nogo = dist_to_nogo
         self.all_dist_to_nogo = all_dist_to_nogo
 
-        self.task_sequence = [[0.45, 0.45],[-0.45, -0.45], [-0.45, 0.45], [0.45, -0.45]]
+        self.task_sequence = [
+            [0.45, 0.45],
+            [-0.45, -0.45],
+            [-0.45, 0.45],
+            [0.45, -0.45],
+        ]
         # Values that define the boundaries of no-go zones
         self.nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
         self.nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
+
     # for info in infos:
     #    if 'episode' in info.keys() and info['done']:
     #        episode_rewards.append(info['episode']['r'])
@@ -159,7 +226,9 @@ class Navigation2DEnv(gym.Env):
             # Sample randomly from four slices
             dart = self.np_random.uniform(0.0, 1.0, size=(1, 1))[0][0]
             if dart <= 0.5:
-                rand_y = self.np_random.uniform(-0.5, -self.nogo_upper, size=(1, 1))[0][0]
+                rand_y = self.np_random.uniform(-0.5, -self.nogo_upper, size=(1, 1))[0][
+                    0
+                ]
             elif dart > 0.5:
                 rand_y = self.np_random.uniform(self.nogo_upper, 0.5, size=(1, 1))[0][0]
         else:
@@ -173,13 +242,46 @@ class Navigation2DEnv(gym.Env):
         goals = [self.task_sequence[idx]]
         return goals
 
+    def _lidar_no_go_perception(self):
+        # cast 8 lines 0.1 long from state position (compass rose).
+        # For each cast return either 0.1 (if there is no 'off-limit' zone in range), or
+        # the distance to the 'off-limit' zones
+        ray_points = [None for _ in range(8)]
+        ray_points[0] = self._state + np.array([0, STEP_SIZE])  # North
+        ray_points[1] = self._state + np.array([-STEP_SIZE, 0])  # West
+        ray_points[2] = self._state + np.array([0, -STEP_SIZE])  # South
+        ray_points[3] = self._state + np.array([STEP_SIZE, 0])  # East
+
+        ray_points[4] = self._state + np.array([-STEP_SIZE, STEP_SIZE])  # North-West
+        ray_points[5] = self._state + np.array([-STEP_SIZE, -STEP_SIZE])  # South-West
+        ray_points[6] = self._state + np.array([STEP_SIZE, -STEP_SIZE])  # South-East
+        ray_points[7] = self._state + np.array([STEP_SIZE, STEP_SIZE])  # North-East
+
+        lidar_ray_dist = [None for _ in range(8)]
+        for idx, point in enumerate(ray_points):
+            is_crossing, segment = is_crossing_nogo(
+                self._state,
+                point,
+                self.nogo_lower,
+                self.nogo_upper,
+                check_trajectory=False,
+            )
+            segment = segment if is_crossing else 1.0
+            lidar_ray_dist[idx] = segment# * STEP_SIZE
+        lidar_ray_dist = np.array(lidar_ray_dist)
+        return lidar_ray_dist
+
     def seed(self, seed=None):
         seed = None
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def sample_tasks(self, idx):
-        goals = self._sample_predetermined(idx) if self.reduced_sampling else self._sample_square_wth_nogo_zone()
+        goals = (
+            self._sample_predetermined(idx)
+            if self.reduced_sampling
+            else self._sample_square_wth_nogo_zone()
+        )
         # goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
@@ -199,12 +301,16 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
-        d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
-
-        if self.rm_dist_to_nogo:
+        if self.dist_to_nogo == NONE_KEY:
             state_info = self._state
-        else:
+        elif self.dist_to_nogo == DIST_KEY:
+            d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
             state_info = np.append(self._state, d2ng)
+        elif self.dist_to_nogo == LIDARS_KEY:
+            lidars = self._lidar_no_go_perception()
+            state_info = np.append(self._state, lidars)
+        else:
+            raise ValueError("Invalid distance info type.")
 
         return state_info
 
@@ -224,11 +330,16 @@ class Navigation2DEnv(gym.Env):
 
         # Check if the x and y are in the no-go zone
         # If yes, punish the agent.
-        if not self.rm_nogo and is_crossing_nogo(self._previous_state, self._state, self.nogo_lower, self.nogo_upper):
+        if (
+            not self.rm_nogo
+            and is_crossing_nogo(
+                self._previous_state, self._state, self.nogo_lower, self.nogo_upper
+            )[0]
+        ):
             reward -= 10
-            self.offending_steps.append((self._previous_state.copy(), self._state.copy()))
-
-        d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
+            self.offending_steps.append(
+                (self._previous_state.copy(), self._state.copy())
+            )
 
         reached = (np.abs(delta_x) < 0.01) and (np.abs(delta_y) < 0.01)
         done = reached or self.horizon <= 0
@@ -238,26 +349,30 @@ class Navigation2DEnv(gym.Env):
         self.episode_x_path.append(self._state[0])
         self.episode_y_path.append(self._state[1])
 
-        if self.rm_dist_to_nogo:
+        if self.dist_to_nogo == NONE_KEY:
             state_info = self._state
-        else:
+        elif self.dist_to_nogo == DIST_KEY:
+            d2ng = dist_2_nogo(self._state[0], self._state[1], self.all_dist_to_nogo)
             state_info = np.append(self._state, d2ng)
+        elif self.dist_to_nogo == LIDARS_KEY:
+            lidars = self._lidar_no_go_perception()
+            state_info = np.append(self._state, lidars)
+        else:
+            raise ValueError("Invalid distance info type.")
 
-        info_dict = {'reached' : reached,
-            'cummulative_reward':self.cummulative_reward,
-            'goal':self._goal,
-            'done':done
-                     }
+        info_dict = {
+            "reached": reached,
+            "cummulative_reward": self.cummulative_reward,
+            "goal": self._goal,
+            "done": done,
+        }
         if done:
-            info_dict['path'] = list(zip(self.episode_x_path.copy(), self.episode_y_path.copy()))
-            info_dict['offending'] = list(self.offending_steps)
+            info_dict["path"] = list(
+                zip(self.episode_x_path.copy(), self.episode_y_path.copy())
+            )
+            info_dict["offending"] = list(self.offending_steps)
 
-        return (
-            state_info,
-            reward,
-            done,
-            info_dict,
-        )
+        return (state_info, reward, done, info_dict)
 
     def render_episode(self):
         plt.figure()
