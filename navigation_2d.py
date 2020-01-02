@@ -12,7 +12,7 @@ from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 
 from math import pi, cos, sin, pow, sqrt
 
-HORIZON = 100
+HORIZON = 20
 
 START = [0.0, 0.0]
 STEP_SIZE = 0.1
