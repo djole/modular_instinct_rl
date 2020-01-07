@@ -19,11 +19,16 @@ SMALL_NOGO_LOWER = 0.2
 LARGE_NOGO_UPPER = 0.4
 LARGE_NOGO_LOWER = 0.05
 
-def vis_instinct_action(model, alldists=False):
+def vis_instinct_action(model, env=None, alldists=False):
     input_xs = get_mesh()
     select_model_action = lambda modl, inputs: modl(inputs)
     amplify_action = lambda instinct_action, control: instinct_action * (1 - control)
-    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1], all_dists=alldists))], dtype=torch.float32)
+
+    def get_lidar_data(x):
+        env._state = x
+        return env._lidar_no_go_perception()
+
+    glue_input = lambda i: torch.tensor([np.append(i, get_lidar_data(i))], dtype=torch.float32)
 
     z = [
         amplify_action(*select_model_action(model, glue_input(x))).flatten() for x in input_xs
@@ -71,7 +76,7 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
             pth = list(zip(*path_rec))
         else:
             pth = list(zip(*path_rec[slice - 1:slice]))
-        axis.plot(*pth, "go")
+        axis.plot(*pth, "g")
         axis.scatter(*goal, color="red", s=250)
 
     # Plot the offending paths
@@ -101,8 +106,8 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
 
 
 def get_mesh():
-    input_x = torch.arange(-1, 1, 0.05)
-    input_y = torch.arange(-1, 1, 0.05)
+    input_x = torch.arange(-1, 1, 0.025)
+    input_y = torch.arange(-1, 1, 0.025)
 
     input_xy = np.stack(np.meshgrid(input_x, input_y))
     input_xy = input_xy.reshape(2, -1)
@@ -110,20 +115,23 @@ def get_mesh():
     return input_xy.transpose()
 
 
-def vis_heatmap(model, alldists=False):
+def vis_heatmap(model, env=None, alldists=False):
     input_xs = get_mesh()
     select_model_action = lambda modl, inputs: modl(inputs)
-    glue_input = lambda i: torch.tensor([np.append(i, dist_2_nogo(i[0], i[1], all_dists=alldists))], dtype=torch.float32)
+    def get_lidar_data(x):
+        env._state = x
+        return env._lidar_no_go_perception()
+    glue_input = lambda i: torch.tensor([np.append(i, get_lidar_data(i))], dtype=torch.float32)
     z = [
         select_model_action(model, glue_input(x))[1].mean().item() for x in input_xs
     ]
     plt.figure()
     axis = plt.gca()
     x, y = input_xs.transpose()[0], input_xs.transpose()[1]
-    x = np.reshape(x, (40, 40))
-    y = np.reshape(y, (40, 40))
-    z = np.reshape(z, (40, 40))
-    axis.pcolormesh(x, y, z, cmap="PiYG")
+    x = np.reshape(x, (80, 80))
+    y = np.reshape(y, (80, 80))
+    z = np.reshape(z, (80, 80))
+    axis.pcolormesh(x, y, z, cmap="Greens")
     #axis.imshow(z, vmin=z.min(), vmax=z.max())
     # axis.pcolormesh(x, y, z, cmap="Reds", alpha=0.5)
     axis.set_xlim(-0.5, 0.5)
