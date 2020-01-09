@@ -163,14 +163,12 @@ class Navigation2DEnv(gym.Env):
         if dist_to_nogo == LIDARS_KEY:
             obs_shape = (10,)
         elif dist_to_nogo == DIST_KEY:
-            obs_shape = (3,)
+            obs_shape = (6,) if all_dist_to_nogo else (3,)
         elif dist_to_nogo == NONE_KEY:
             obs_shape = (2,)
         else:
             raise ValueError("dist_to_nogo is either None, 'lidars', or 'dist'")
 
-        if all_dist_to_nogo:
-            obs_shape = (6,)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=obs_shape, dtype=np.float32
         )
