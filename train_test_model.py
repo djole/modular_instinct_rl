@@ -171,6 +171,7 @@ def train_maml_like_ppo(
         #        agent.optimizer, j, num_updates,
         #        agent.optimizer.lr if args.algo == "acktr" else args.lr)
         min_c_rew = float("inf")
+        offending_steps_num = 0
         for step in range(num_steps):
             # Sample actions
             with torch.no_grad():
@@ -182,6 +183,7 @@ def train_maml_like_ppo(
             obs, reward, done, infos = envs.step(action)
 
             if done[0]:
+                offending_steps_num += len(infos[0]["offending"])
                 c_rew = infos[0]["cummulative_reward"]
                 if c_rew < min_c_rew:
                     min_c_rew = c_rew
@@ -212,7 +214,7 @@ def train_maml_like_ppo(
         if ob_rms is not None:
             ob_rms = ob_rms.ob_rms
         fits, info = evaluate(actor_critic, ob_rms, envs, NUM_PROC, device)
-        fitnesses.append(fits)
+        fitnesses.append(fits - (offending_steps_num*10))
     return fitnesses[-1], info[0]['reached'], None
 
 def train_maml_like(
