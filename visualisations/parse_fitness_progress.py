@@ -10,22 +10,25 @@ def main():
     best_in_pop_ptrn = re.compile("best in the population ---->")
     stabilize_ptrn = re.compile("best in the population after stabilization")
     float_ptrn = re.compile("-*\d+.\d*")
-    file_dir = "/Users/djgr/code/instincts/modular_rl/trained_models/pulled_from_server/second_phase_instinct/n_deterministic_goals/4goals_dist2nogo/logs"
-    prs_file = "EVOLUTION_sym_smallpop_part2.log"
-    src_path = join(file_dir, prs_file)
+    file_dir = "/Users/djgr/code/instincts/modular_rl/trained_models/pulled_from_server/second_phase_instinct/n_deterministic_goals/4goals_lidars_extra_cost"
 
+    parts = [1]
     best_val_generation = []
     besta_stabile_generation = []
-    with open(src_path, "r") as src_file:
-        for log_line in src_file:
-            best_line = best_in_pop_ptrn.search(log_line)
-            if best_line is not None:
-                val = float_ptrn.findall(log_line)[0]
-                best_val_generation.append(float(val))
-            best_stabile_line = stabilize_ptrn.search(log_line)
-            if best_stabile_line is not None:
-                val = float_ptrn.findall(log_line)[0]
-                besta_stabile_generation.append(float(val))
+    for prt in parts:
+        prs_file = f"EVOLUTION_lidar_fixed_part{prt}.log"
+        src_path = join(file_dir, prs_file)
+
+        with open(src_path, "r") as src_file:
+            for log_line in src_file:
+                best_line = best_in_pop_ptrn.search(log_line)
+                if best_line is not None:
+                    val = float_ptrn.findall(log_line)[0]
+                    best_val_generation.append(float(val))
+                best_stabile_line = stabilize_ptrn.search(log_line)
+                if best_stabile_line is not None:
+                    val = float_ptrn.findall(log_line)[0]
+                    besta_stabile_generation.append(float(val))
 
 
     print(best_val_generation.index(max(best_val_generation)))
