@@ -163,21 +163,21 @@ def train_maml_like_ppo(
 
     fitnesses = []
 
+    instinct_control_sum = 0
+    offending_steps_num = 0
     for j in range(num_updates):
-
         #if args.use_linear_lr_decay:
         #    # decrease learning rate linearly
         #    utils.update_linear_schedule(
         #        agent.optimizer, j, num_updates,
         #        agent.optimizer.lr if args.algo == "acktr" else args.lr)
-        min_c_rew = float("inf")
-        offending_steps_num = 0
         for step in range(num_steps):
             # Sample actions
             with torch.no_grad():
-                value, action, action_log_prob, recurrent_hidden_states, _ = actor_critic.act(
+                value, action, action_log_prob, recurrent_hidden_states, (_, ctrl) = actor_critic.act(
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
+                instinct_control_sum += ctrl
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
@@ -185,8 +185,7 @@ def train_maml_like_ppo(
             if done[0]:
                 offending_steps_num += len(infos[0]["offending"])
                 c_rew = infos[0]["cummulative_reward"]
-                if c_rew < min_c_rew:
-                    min_c_rew = c_rew
+
             # If done then clean the history of observations.
             masks = torch.FloatTensor(
                 [[0.0] if done_ else [1.0] for done_ in done])
@@ -215,7 +214,7 @@ def train_maml_like_ppo(
             ob_rms = ob_rms.ob_rms
         fits, info = evaluate(actor_critic, ob_rms, envs, NUM_PROC, device)
         fitnesses.append(fits - (offending_steps_num*10))
-    return fitnesses[-1], info[0]['reached'], None
+    return fitnesses[-1], info[0]['reached'], (instinct_control_sum/(num_steps * num_updates))
 
 def train_maml_like(
     init_model,

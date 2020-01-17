@@ -4,7 +4,7 @@ import os
 import time
 from functools import partial
 from math import log
-from statistics import median
+from statistics import mean
 
 import numpy as np
 import torch
@@ -68,6 +68,7 @@ class EA:
             self.to_select = 1
         self.fitnesses = []
         self.reached = []
+        self.instinct_average_list = []
         self.args = args
 
         self.sigma = 0.01
@@ -105,6 +106,7 @@ class EA:
                 self.population.append(ind)
                 self.fitnesses.append(0)
                 self.reached.append(0)
+                self.instinct_average_list.append(0)
             else:
                 self.selected.append(ind)
             print(
@@ -118,9 +120,10 @@ class EA:
         if len(fitnesses) != len(self.fitnesses):
             raise ValueError("Fitness array mismatch")
 
-        fitness_list, reached_list = list(zip(*fitnesses))
+        fitness_list, reached_list, instinct_average_list = list(zip(*fitnesses))
         self.fitnesses = fitness_list
         self.reached = reached_list
+        self.instinct_average_list = instinct_average_list
 
     def step(self, generation_idx, args, device):
         """One step of the evolution"""
@@ -154,6 +157,7 @@ class EA:
         print("best in the population ----> ", sorted_fit_idxs[0][0])
         print("best's learning rate ------>", self.population[max_idx].learning_rate)
         print("best in population reached {} goals".format(self.reached[max_idx]))
+        print("best in population instinct activation average ------>", self.instinct_average_list[max_idx])
         # print("best in the population after stabilization", re_fit_max)
         print("worst in the population ----> ", sorted_fit_idxs[-1][0])
         print("worst parent --------------->", sorted_fit_idxs[self.to_select - 1][0])
@@ -211,8 +215,8 @@ class EA:
             )
             for num_att in range(num_attempts)
         ]
-        fits, reacheds, _ = list(zip(*fits))
-        return sum(fits), sum(reacheds)
+        fits, reacheds, instinct_control_avgs = list(zip(*fits))
+        return sum(fits), sum(reacheds), mean(instinct_control_avgs)
 
 
 def save_population(args, population, best_ind, generation_idx):
