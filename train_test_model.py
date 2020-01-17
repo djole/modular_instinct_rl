@@ -174,17 +174,16 @@ def train_maml_like_ppo(
         for step in range(num_steps):
             # Sample actions
             with torch.no_grad():
-                value, action, action_log_prob, recurrent_hidden_states, (_, ctrl) = actor_critic.act(
+                value, action, action_log_prob, recurrent_hidden_states, (final_action, ctrl) = actor_critic.act(
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
                 instinct_control_sum += ctrl
 
             # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
+            obs, reward, done, infos = envs.step(final_action)
 
             if done[0]:
                 offending_steps_num += len(infos[0]["offending"])
-                c_rew = infos[0]["cummulative_reward"]
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor(

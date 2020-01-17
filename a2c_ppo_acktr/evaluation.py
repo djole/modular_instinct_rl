@@ -24,14 +24,14 @@ def evaluate(actor_critic, ob_rms, eval_envs, num_processes,
     done = False
     while not done:
         with torch.no_grad():
-            _, action, _, eval_recurrent_hidden_states, _ = actor_critic.act(
+            _, action, _, eval_recurrent_hidden_states, (final_action, _) = actor_critic.act(
                 obs,
                 eval_recurrent_hidden_states,
                 eval_masks,
                 deterministic=True)
 
         # Obser reward and next obs
-        obs, _, done, infos = eval_envs.step(action)
+        obs, _, done, infos = eval_envs.step(final_action)
 
         eval_masks = torch.tensor(
             [[0.0] if done_ else [1.0] for done_ in done],
