@@ -178,8 +178,9 @@ class Navigation2DEnv(gym.Env):
 
         self._task = task
         self._goal = task.get("goal", np.zeros(2, dtype=np.float32))
-        self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
-        self._previous_state = np.array(START)
+        self.start_state = START
+        self._state = np.array(self.start_state)  # np.zeros(2, dtype=np.float32)
+        self._previous_state = np.array(self.start_state)
         self.seed()
         self.horizon = HORIZON
         self.cummulative_reward = 0
@@ -289,8 +290,17 @@ class Navigation2DEnv(gym.Env):
         self._task = task
         self._goal = task["goal"]
 
+    def set_random_start_state(self):
+        self.start_state = self._sample_ring_task().flatten()
+
+    def set_start_state(self, start_state):
+        try:
+            self.start_state = start_state.flatten()
+        except:
+            self.start_state = start_state
+
     def reset(self):
-        self._state = np.array(START)  # np.zeros(2, dtype=np.float32)
+        self._state = np.array(self.start_state)  # np.zeros(2, dtype=np.float32)
         self.horizon = HORIZON
         self.cummulative_reward = 0
         self.episode_x_path.clear()
