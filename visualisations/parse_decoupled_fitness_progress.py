@@ -8,36 +8,37 @@ from os.path import join
 
 
 def plot_concatinate_files(files_dir, log_file_list):
-    best_in_pop_ptrn = re.compile("best in the population ---->")
-    stabilize_ptrn = re.compile("best in the population after stabilization")
-    activation_ptrn = re.compile("activation average")
+    generation_ptrn = re.compile("Generation")
+    distance_fit_ptrn = re.compile("Distance fitness")
+    violation_fit_ptrn= re.compile("NOGO fitness")
     float_ptrn = re.compile("-*\d+.\d*")
+    int_ptrn = re.compile("-*\d+")
 
-    best_val_generation = []
-    best_stabile_generation = []
-    best_activation_generation = []
+    generations = []
+    distance_fits = []
+    violation_fits = []
 
     for log_file in log_file_list:
         src_path = join(files_dir, log_file)
 
         with open(src_path, "r") as src_file:
             for log_line in src_file:
-                best_line = best_in_pop_ptrn.search(log_line)
-                if best_line is not None:
-                    val = float_ptrn.findall(log_line)[0]
-                    best_val_generation.append(float(val))
+                gen_line = generation_ptrn.search(log_line)
+                if gen_line is not None:
+                    val = int_ptrn.findall(log_line)[0]
+                    generations.append(int(val))
 
-                best_stabile_line = stabilize_ptrn.search(log_line)
-                if best_stabile_line is not None:
+                distance_fit_line = distance_fit_ptrn.search(log_line)
+                if distance_fit_line is not None:
                     val = float_ptrn.findall(log_line)[0]
-                    best_stabile_generation.append(float(val))
+                    distance_fits.append(float(val))
 
-                best_activation_line = activation_ptrn.search(log_line)
-                if best_activation_line is not None:
-                    val = float_ptrn.findall(log_line)[0]
-                    best_activation_generation.append(float(val))
+                violation_fit_line = violation_fit_ptrn.search(log_line)
+                if violation_fit_line is not None:
+                    val = int_ptrn.findall(log_line)[0]
+                    violation_fits.append(float(val))
 
-    return best_val_generation, best_stabile_generation, best_activation_generation
+    return generations, distance_fits, violation_fits
 
 
 def plot_graph(graphs, labels, color_list, x_lbl, y_lbl, title):
@@ -55,46 +56,20 @@ def plot_graph(graphs, labels, color_list, x_lbl, y_lbl, title):
 
 def main():
 
-    files_dir = "/Users/djgr/code/instincts/modular_rl/trained_models/pulled_from_server/second_phase_instinct/n_deterministic_goals/4goals_lidar_ctrl_noCoordiantes/logs"
+    files_dir = "/Users/djgr/code/instincts/modular_rl/trained_models/pulled_from_server/second_phase_instinct/n_deterministic_goals/4goals_lidar_ctrl_noCoordiantes/balance_plot_visualisation/"
+    file_name = "output.txt"
 
-    best_vals = []
-    best_activations = []
-    numbers = [
-        ### Get IMN fitness
-        plot_concatinate_files(
-            files_dir, [f"instinctual_network_module/EVOLUTION_lidar_smallExp_run_1_part{prt}.log" for prt in [1, 2, 3]]
-        ),
-        plot_concatinate_files(
-            files_dir,
-            [f"instinctual_network_module/EVOLUTION_lidar_smallExp_run_2_part{prt}.log" for prt in [1, 2]]
-        ),
-        plot_concatinate_files(
-            files_dir,
-            [f"instinctual_network_module/EVOLUTION_lidar_smallExp_run_3_part{prt}.log" for prt in [1, 2, 3]]
-        ),
+    gens, dist_fits, violation_fits = plot_concatinate_files(files_dir, [file_name])
 
-        # Get CTRL fitness
-        plot_concatinate_files(
-            files_dir, [f"control/EVOLUTION_lidar_control_run_1_part{prt}.log" for prt in [1, 2]]
-        ),
-        plot_concatinate_files(
-            files_dir, [f"control/EVOLUTION_lidar_control_run_2_part{prt}.log" for prt in [1, 2, 3, 4]]
-        ),
-        plot_concatinate_files(
-            files_dir, [f"control/EVOLUTION_lidar_control_run_3_part{prt}.log" for prt in [1, 2]]
-        ),
-    ]
+    plt.plot(gens, dist_fits, label="Fitness associated with distance to goal")
+    plt.plot(gens, violation_fits, label="Fitness associated with hazard zone violations")
 
-    numbers = list(zip(*numbers))
-
-    plot_graph(
-        numbers[0],
-        ["instinct run1", "instinct run2", "instinct run3", "no instinct run1", "no instinct run2", "no instinct run3"],
-        ["blue", "blue", "blue", "orange", "orange", "orange"],
-        "generation",
-        "fitness",
-        "best individual fitness",
-    )
+    plt.xlabel("Generations")
+    plt.ylabel("")
+    plt.title("Decoupled fitness over generations")
+    plt.ylim(plt.ylim()[::-1])
+    plt.legend(loc="upper right")
+    plt.show()
 
 if __name__ == "__main__":
     main()
