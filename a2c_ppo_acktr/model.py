@@ -22,10 +22,6 @@ class PolicyWithInstinct(nn.Module):
         self.policy = Policy(obs_shape, action_space, init_log_std, base, base_kwargs)
         self.instinct = ControllerInstinct(obs_shape[0], 100, action_space.shape[0])
 
-        if load_instinct:
-            loaded_instinct = torch.load(os.path.join(os.path.dirname(__file__), "../instinct.pt"))
-            self.instinct.load_state_dict(self.instinct.state_dict())
-            self.apply(weight_init)
         self.freeze_instinct = load_instinct
 
     @property
