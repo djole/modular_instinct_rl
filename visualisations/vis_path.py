@@ -3,12 +3,18 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import os
+import itertools
 
 import navigation_2d
 from arguments import get_args
 from model import ControllerCombinator, ControllerMonolithic
 from train_test_model import train_maml_like
 from navigation_2d import dist_2_nogo
+
+from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                  AnnotationBbox)
+from matplotlib.cbook import get_sample_data
 
 NUM_EPISODES = 40
 NUM_UPDATES = 1
@@ -17,6 +23,9 @@ SMALL_NOGO_UPPER = 0.3
 SMALL_NOGO_LOWER = 0.2
 LARGE_NOGO_UPPER = 0.4
 LARGE_NOGO_LOWER = 0.05
+
+DIRNAME = os.path.dirname(__file__)
+DANGER_IMG_PTH = os.path.join(DIRNAME, 'danger_image.jpg')
 
 def vis_instinct_action(model, env=None, alldists=False):
     input_xs = get_mesh()
@@ -57,8 +66,32 @@ def vis_instinct_action(model, env=None, alldists=False):
 
     plt.show()
 
+def in_array(x, arr):
+    for a in arr:
+        r1 = x[0] == a
+        if r1.all():
+            return True
+    return False
 
-def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None, offending=None):
+def vis_path_framebyframe(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None, offending=None):
+    sliced = []
+    offending_sliced = []
+    for v,i in zip(vis, itertools.count()):
+        sliced.append(v)
+
+        for of in offending:
+            if in_array(of, v[0]):
+                offending_sliced.append(of)
+        vis_path(sliced, f"{i}_explore", eval_path_rec=[], offending=offending_sliced)
+
+    eval_path = []
+    for ev_step, i in zip(eval_path_rec, itertools.count()):
+        eval_path.append(ev_step)
+        vis_path(sliced, f"{i}_eval", eval_path_rec=eval_path, offending=offending)
+
+
+
+def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None, offending=None, draw_hazard=True):
     """ Visualize the path """
     nogo_lower = LARGE_NOGO_LOWER if nogo_large else SMALL_NOGO_LOWER
     nogo_upper = LARGE_NOGO_UPPER if nogo_large else SMALL_NOGO_UPPER
@@ -88,19 +121,30 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
     # Plot the evaluation path
     if eval_path_rec is not None:
         eval_path_rec = list(zip(*eval_path_rec))
-        axis.plot(*eval_path_rec, color='purple')
+        axis.plot(*eval_path_rec, linewidth=4, color='purple')
 
-    axis.add_patch(plt.Rectangle((nogo_lower, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
-    axis.add_patch(plt.Rectangle((-nogo_upper, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
-    axis.add_patch(plt.Rectangle((nogo_lower, -nogo_upper), nogo_size, nogo_size, fc="b", alpha=0.5))
-    axis.add_patch(plt.Rectangle((-nogo_upper, -nogo_upper), nogo_size, nogo_size, fc="b", alpha=0.5))
+    ### Import the danger image
+    with get_sample_data(DANGER_IMG_PTH) as file:
+        arr_img = plt.imread(file, format='jpg')
 
-    axis.set_xlim(-1.0, 1.0)
-    axis.set_ylim(-1.0, 1.0)
+    if draw_hazard:
+        axis.imshow(arr_img, origin=[0, 0], extent=[nogo_lower, nogo_upper, nogo_lower, nogo_upper])
+        axis.imshow(arr_img, origin=[0, 0], extent=[-nogo_lower, -nogo_upper, nogo_lower, nogo_upper])
+        axis.imshow(arr_img, origin=[0, 0], extent=[nogo_lower, nogo_upper, -nogo_lower, -nogo_upper])
+        axis.imshow(arr_img, origin=[0, 0], extent=[-nogo_lower, -nogo_upper, -nogo_lower, -nogo_upper])
+
+    #axis.add_patch(plt.Rectangle((nogo_lower, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
+    #axis.add_patch(plt.Rectangle((-nogo_upper, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
+    #axis.add_patch(plt.Rectangle((nogo_lower, -nogo_upper), nogo_size, nogo_size, fc="b", alpha=0.5))
+    #axis.add_patch(plt.Rectangle((-nogo_upper, -nogo_upper), nogo_size, nogo_size, fc="b", alpha=0.5))
+
+    axis.set_xlim(-0.75, 0.75)
+    axis.set_ylim(-0.75, 0.75)
     if saveidx is None:
         plt.show()
     else:
-        plt.savefig("/Users/djgr/code/instincts/modular_rl/trained_models/pulled_from_server/second_phase_instinct/n_deterministic_goals/4goals_lidar_ctrl_noCoordiantes/balance_plot_visualisation/plots/img_{}".format(saveidx))
+        save_dir = os.path.join(DIRNAME, f"plots/film/img_{saveidx}")
+        plt.savefig(save_dir)
         plt.close()
 
 def show_empty_yard(nogo_large=False):
