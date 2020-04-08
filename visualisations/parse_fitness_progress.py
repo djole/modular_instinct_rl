@@ -41,7 +41,9 @@ def plot_concatinate_files(files_dir, log_file_list):
 
 
 def plot_graph(graphs, labels, color_list, x_lbl, y_lbl, title):
-    for gr, clr, i in zip(graphs, color_list, range(10)):
+    for gr, clr, i in zip(graphs, color_list, range(11)):
+        if i == 2:
+            continue
         if len(gr) > 250:
             gr = gr[:250]
         else:
@@ -52,6 +54,8 @@ def plot_graph(graphs, labels, color_list, x_lbl, y_lbl, title):
             plt.plot(range(len(gr)), gr, label="MLIN", color=clr)
         if i == 6:
             plt.plot(range(len(gr)), gr, label=" no MLIN", color=clr)
+        if i == 10:
+            plt.plot(range(len(gr)), gr, label="MLIN, no hazard", color=clr)
         else:
             plt.plot(range(len(gr)), gr, color=clr)
 
@@ -106,14 +110,17 @@ def main():
         plot_concatinate_files(
             files_dir, [f"control/EVOLUTION_lidar_control_run_5_part{prt}.log" for prt in [1, 2]]
         ),
+        plot_concatinate_files(
+            files_dir, ["control_nohazards/EVOLUTION_lidar_smallExp_part1.log"]
+        ),
     ]
 
     numbers = list(zip(*numbers))
 
     plot_graph(
         numbers[0],
-        ["MLIN fitness", "instinct run2", "instinct run3", "no instinct run1", "no instinct run2", "no instinct run3"],
-        ["blue", "blue", "blue", "blue", "blue", "orange", "orange", "orange", "orange", "orange"],
+        ["MLIN fitness", "instinct run2", "instinct run3", "no instinct run1", "no instinct run2", "no instinct run3", "MLIN, no hazards fitness"],
+        ["blue", "blue", "blue", "blue", "blue", "orange", "orange", "orange", "orange", "orange", "red"],
         "generation",
         "fitness",
         "best individual fitness",
