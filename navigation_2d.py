@@ -276,11 +276,12 @@ class Navigation2DEnv(gym.Env):
         return [seed]
 
     def sample_tasks(self, idx):
-        goals = (
-            self._sample_predetermined(idx)
-            if self.reduced_sampling
-            else self._sample_square_wth_nogo_zone()
-        )
+        #goals = (
+        #    self._sample_predetermined(idx)
+        #    if self.reduced_sampling
+        #    else self._sample_square_wth_nogo_zone()
+        #)
+        goals = self._sample_square_wth_nogo_zone()
         # goals = self.np_random.uniform(-0.5, 0.5, size=(1, 2))
         # goals = np.array(self.task_sequence)
         tasks = [{"goal": goal} for goal in goals]
