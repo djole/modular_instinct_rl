@@ -99,6 +99,7 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
     plt.figure()
     axis = plt.gca()
     # Plot the exploration paths
+    goal = None
     for v in vis:
         path_rec = v[0]
         goal = v[1]
@@ -109,7 +110,6 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
         else:
             pth = list(zip(*path_rec[slice - 1:slice]))
         axis.plot(*pth, "g")
-        axis.scatter(*goal, color="red", s=250)
 
     # Plot the offending paths
     if offending is not None:
@@ -132,6 +132,8 @@ def vis_path(vis, saveidx=None, slice=None, nogo_large=False, eval_path_rec=None
         axis.imshow(arr_img, origin=[0, 0], extent=[-nogo_lower, -nogo_upper, nogo_lower, nogo_upper])
         axis.imshow(arr_img, origin=[0, 0], extent=[nogo_lower, nogo_upper, -nogo_lower, -nogo_upper])
         axis.imshow(arr_img, origin=[0, 0], extent=[-nogo_lower, -nogo_upper, -nogo_lower, -nogo_upper])
+
+    axis.scatter(*goal, color="red", s=100)
 
     #axis.add_patch(plt.Rectangle((nogo_lower, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
     #axis.add_patch(plt.Rectangle((-nogo_upper, nogo_lower), nogo_size, nogo_size, fc="b", alpha=0.5))
