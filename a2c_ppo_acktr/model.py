@@ -61,7 +61,7 @@ class PolicyWithInstinct(nn.Module):
         if instinct_on:
             final_action = controlled_stoch_action + controlled_instinct_action
         else:
-            final_action = action
+            final_action = action * 0.5
 
         return value, action, action_log_probs, rnn_hxs, (final_action, control.mean().item())
 
