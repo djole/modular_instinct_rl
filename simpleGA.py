@@ -209,10 +209,6 @@ class EA:
             train_maml_like_ppo(
                 individual.model, args, individual.learning_rate, run_idx=num_att
             )
-            if args.ppo
-            else train_maml_like(
-                individual.model, args, individual.learning_rate, run_idx=num_att
-            )
             for num_att in range(num_attempts)
         ]
         fits, reacheds, instinct_control_avgs = list(zip(*fits))
