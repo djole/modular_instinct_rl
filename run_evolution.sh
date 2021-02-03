@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source .virtual/bin/activate
+# source .virtual/bin/activate
 # Uncomment the followinf line if running multiprocessing on Linux systems.
 # Replace XXXX with a large number, such as 10000 (if paralel. over 10 cores) and
 # 1000000 (if paralel. over 70 cores.
