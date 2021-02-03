@@ -12,4 +12,9 @@ source .virtual/bin/activate
 # to get immediate release of stdout into the log file.
 # The tool can be installed: sudo apt install expect-dev
 # After, add "unbuffer" at the beginning of the next line (without quotes).
-mpirun -n 2 python main.py --debug
+
+# For debugging
+# mpirun -n 2 python main.py --init-sigma=0.05 --num-proc=60 --ppo --lr=0.01 --norm-vectors --reduce-goals --num-reduced-samples=8 --dist-to-nogo=none --rm-nogo --debug
+
+# For running an experiment on 60 cores
+mpirun -n 60 python main.py --init-sigma=0.05 --num-proc=60 --ppo --lr=0.01 --norm-vectors --reduce-goals --num-reduced-samples=8 --dist-to-nogo=none
