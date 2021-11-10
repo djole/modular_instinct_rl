@@ -97,7 +97,7 @@ Send2Trash==1.5.0
 six==1.11.0
 tensorboard==1.12.0
 tensorboardX==1.7
-tensorflow==2.4.0
+tensorflow==2.5.2
 termcolor==1.1.0
 terminado==0.8.2
 testpath==0.4.2
