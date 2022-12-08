@@ -13,7 +13,7 @@ bleach==3.3.0
 Box2D==2.3.2
 Box2D-kengz==2.3.3
 box2d-py==2.3.5
-certifi==2018.10.15
+certifi==2022.12.7
 cffi==1.11.5
 chardet==3.0.4
 Click==7.0
